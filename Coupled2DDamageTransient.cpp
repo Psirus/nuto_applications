@@ -208,12 +208,12 @@ int main()
     structure.SetNumTimeDerivatives(1);
 
     // import mesh
-    auto groupIndices = structure.ImportFromGmsh("./Temperature2DMeso.msh");
+    //auto groupIndices = structure.ImportFromGmsh("./Temperature2DMeso.msh");
     //auto groupIndices = structure.ImportFromGmsh("./TwoElements.msh",
     //        "ConstitutiveLawIp", "StaticData");
     //auto groupIndices = structure.ImportFromGmsh("./Temperature2DHomogeneous.msh",
     //        "ConstitutiveLawIp", "StaticDataNonLocal");
-    //auto groupIndices = structure.ImportFromGmsh("./OneStone.msh",
+    auto groupIndices = structure.ImportFromGmsh("/home/cpohl/Code/Cpp/nuto/myNutoExamples/OneStone.msh");
     //        "ConstitutiveLawIp", "StaticDataNonLocal");
 
     // create section
@@ -261,9 +261,6 @@ int main()
     //structure.ConstraintLinearSetTemperatureNode(0, 50.0);
     structure.ConstraintLinearSetTemperatureNodeGroup(nodesWest, 0.0);
     auto east_bc = structure.ConstraintLinearSetTemperatureNodeGroup(nodesEast, 0.0);
-
-    auto test = SandstoneExpansion(300.0);
-    std::cout << test[0] << " " << test[1] << std::endl;
 
     // solve system
     NuTo::NewmarkDirect newmark(&structure);

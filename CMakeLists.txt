@@ -88,6 +88,16 @@ if(ENABLE_MECHANICS)
 endif()
 
 if(ENABLE_MECHANICS)
+    add_executable(ThermoDamage ThermoDamage.cpp)
+    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Temperature2DHomogeneous.msh
+        ${CMAKE_CURRENT_BINARY_DIR}/Temperature2DHomogeneous.msh COPYONLY)
+    target_link_libraries(ThermoDamage NuToMechanics NuToMath NuToBase ${Boost_LIBRARIES} ${MUMPS_LIBRARIES})
+    if(ENABLE_VISUALIZE)
+        target_link_libraries(ThermoDamage NuToVisualize)
+    endif()
+endif()
+
+if(ENABLE_MECHANICS)
   add_executable(hancock1 hancock1.cpp)
   target_link_libraries(hancock1 NuToMechanics NuToMath NuToBase ${Boost_LIBRARIES} ${LAPACK_LIBRARIES} ${ANN_LIBRARIES})
   if(ENABLE_VISUALIZE)

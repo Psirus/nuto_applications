@@ -9,7 +9,7 @@
 #include "nuto/mechanics/constitutive/laws/AdditiveOutput.h"
 #include "nuto/mechanics/constitutive/laws/ThermalStrains.h"
 #include "nuto/mechanics/timeIntegration/NewmarkDirect.h"
-#include "nuto/mechanics/MechanicsEnum.h"
+#include "nuto/mechanics/MechanicsEnums.h"
 #include "nuto/visualize/VisualizeEnum.h"
 
 struct Properties
@@ -132,10 +132,10 @@ int main()
     structure.SetNumTimeDerivatives(1);
 
     // import mesh
-    auto groupIndices = structure.ImportFromGmsh("./Temperature2DMeso.msh");
+    //auto groupIndices = structure.ImportFromGmsh("./Temperature2DMeso.msh");
     //auto groupIndices = structure.ImportFromGmsh("./Temperature2DHomogeneous.msh",
     //        "ConstitutiveLawIp", "StaticDataNonLocal");
-    //auto groupIndices = structure.ImportFromGmsh("./OneStone.msh",
+    auto groupIndices = structure.ImportFromGmsh("./OneStone.msh");
     //        "ConstitutiveLawIp", "NoIpData");
     //auto groupIndices = structure.ImportFromGmsh("./TwoElements.msh",
     //        "ConstitutiveLawIp", "StaticDataNonLocal");

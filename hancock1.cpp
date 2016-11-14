@@ -5,7 +5,7 @@
 #include "nuto/mechanics/structures/unstructured/Structure.h"
 #include "nuto/mechanics/timeIntegration/NewmarkDirect.h"
 #include "nuto/mechanics/tools/MeshGenerator.h"
-#include "nuto/mechanics/MechanicsEnum.h"
+#include "nuto/mechanics/MechanicsEnums.h"
 #include "nuto/visualize/VisualizeEnum.h"
 
 const double length = 10.0;

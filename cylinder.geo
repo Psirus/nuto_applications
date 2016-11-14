@@ -1,4 +1,4 @@
-coarseness = 20.0;
+coarseness = 10.0;
 r = 31.0;
 h = 186.0;
 

@@ -6,7 +6,7 @@
 #include "nuto/mechanics/constitutive/laws/AdditiveInputExplicit.h"
 #include "nuto/mechanics/constitutive/laws/AdditiveOutput.h"
 #include "nuto/mechanics/tools/MeshGenerator.h"
-#include "nuto/mechanics/MechanicsEnum.h"
+#include "nuto/mechanics/MechanicsEnums.h"
 #include "nuto/visualize/VisualizeEnum.h"
 
 int SetConstitutiveLaws(NuTo::Structure &structure)

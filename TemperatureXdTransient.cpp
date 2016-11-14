@@ -87,7 +87,7 @@ double CompareToAnalyticSolution(NuTo::Structure &structure, double simulationTi
 int main()
 {
     // mesh
-    int nElements = 100;
+    int nElements = 1000;
     // Geometry
     double length = 1.0;
     double thickness = 1.0;
@@ -125,9 +125,9 @@ int main()
 
     structure.ElementTotalConvertToInterpolationType();
 
-	auto visualizationGroup = structure.GroupCreate(NuTo::eGroupId::Elements);
-    structure.GroupAddElementsTotal(visualizationGroup);
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::TEMPERATURE);
+	//auto visualizationGroup = structure.GroupCreate(NuTo::eGroupId::Elements);
+    //structure.GroupAddElementsTotal(visualizationGroup);
+    //structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::TEMPERATURE);
 
     SetInitialCondition(structure);
 
