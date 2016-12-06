@@ -1,20 +1,19 @@
 #include <iostream>
+#include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>
 #include <cmath>
 #include "nuto/math/FullMatrix.h"
 #include "nuto/math/SparseMatrixCSRGeneral.h"
 #include "nuto/math/SparseDirectSolverMUMPS.h"
 #include "nuto/math/LinearInterpolation.h"
+#include "nuto/mechanics/MechanicsEnums.h"
 #include "nuto/mechanics/structures/unstructured/Structure.h"
 #include "nuto/mechanics/constitutive/laws/AdditiveInputExplicit.h"
 #include "nuto/mechanics/constitutive/laws/AdditiveOutput.h"
 #include "nuto/mechanics/constitutive/laws/ThermalStrains.h"
 #include "nuto/mechanics/nodes/NodeBase.h"
 #include "nuto/mechanics/timeIntegration/NewmarkDirect.h"
-#include "nuto/mechanics/nodes/NodeEnum.h"
 #include "nuto/visualize/VisualizeEnum.h"
-#include "nuto/mechanics/groups/GroupEnum.h"
-#include "nuto/mechanics/integrationtypes/IntegrationTypeEnum.h"
-#include "nuto/mechanics/interpolationtypes/InterpolationTypeEnum.h"
 
 const double radius = 31.0;
 const double height = 186.0;
@@ -164,15 +163,46 @@ bool node_is_on_side(NuTo::NodeBase* node)
     return false;
 }
 
-
-int main()
+std::string DeclareCLI(int ac, char* av[])
 {
+    namespace po = boost::program_options;
+    po::options_description desc("Khoury cooling experiment; needs a mesh file.\n"
+                                 "Call like this: ./khoury_cooling mesh.msh\n"
+                                 "Options");
+    desc.add_options()("help", "show this message");
+
+    po::options_description hidden("Hidden options");
+    hidden.add_options()("mesh-file", po::value<std::vector<std::string>>(), "mesh file to use");
+
+    po::positional_options_description pos;
+    pos.add("mesh-file", -1);
+
+    po::options_description cmdline_options;
+    cmdline_options.add(desc).add(hidden);
+
+    po::variables_map vm;        
+    po::store(po::command_line_parser(ac, av).options(cmdline_options).positional(pos).run(), vm);
+    po::notify(vm);
+
+    if (vm.count("help") or vm.empty())
+    {
+        std::cout << desc << "\n";
+        std::exit(0);
+    }
+
+    return vm["mesh-file"].as<std::vector<std::string>>()[0];
+}
+
+int main(int ac, char* av[])
+{
+    auto filename = DeclareCLI(ac, av);
+
     NuTo::Structure structure(3);
     structure.SetNumProcessors(4);
     structure.SetNumTimeDerivatives(2);
 
     // import mesh
-    auto groupIndices = structure.ImportFromGmsh("./cylinder.msh");
+    auto groupIndices = structure.ImportFromGmsh(filename);
 
     // create section
     auto section = structure.SectionCreate("Volume");
@@ -220,15 +250,21 @@ int main()
     // displacement BC
     NuTo::FullVector<double, Eigen::Dynamic> coordinates_right = std::vector<double>({radius, 0.0, 0.0});
     NuTo::FullVector<double, Eigen::Dynamic> coordinates_left = std::vector<double>({0.0, radius, 0.0});
-    for (auto coordinate : std::vector<NuTo::FullVector<double, Eigen::Dynamic>>({coordinates_left, coordinates_right}))
-    {
-        auto node_id = structure.NodeGetIdAtCoordinate(coordinate, 1e-6);
-        NuTo::NodeBase* node = structure.NodeGetNodePtr(node_id);
-        structure.ConstraintLinearSetDisplacementNode(node, NuTo::FullVector<double, 3>::UnitX(), 0.0);
-        structure.ConstraintLinearSetDisplacementNode(node, NuTo::FullVector<double, 3>::UnitY(), 0.0);
-    }
+   // for (auto coordinate : std::vector<NuTo::FullVector<double, Eigen::Dynamic>>({coordinates_left, coordinates_right}))
+   // {
+   //     auto node_id = structure.NodeGetIdAtCoordinate(coordinate, 1e-6);
+   //     NuTo::NodeBase* node = structure.NodeGetNodePtr(node_id);
+   //     structure.ConstraintLinearSetDisplacementNode(node, NuTo::FullVector<double, 3>::UnitX(), 0.0);
+   //     structure.ConstraintLinearSetDisplacementNode(node, NuTo::FullVector<double, 3>::UnitY(), 0.0);
+   // }
 
+    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, NuTo::FullVector<double,3>::UnitX(), 0.0);
+    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, NuTo::FullVector<double,3>::UnitY(), 0.0);
     structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, NuTo::FullVector<double,3>::UnitZ(), 0.0);
+
+    structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, NuTo::FullVector<double,3>::UnitX(), 0.0);
+    structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, NuTo::FullVector<double,3>::UnitY(), 0.0);
+
 
     // temperature BC
     structure.SetNumLoadCases(1);
@@ -248,8 +284,17 @@ int main()
     //newmark.ConnectCallback
 
     bool deleteDirectory = true;
-    newmark.SetResultDirectory("cylinder_expansion", deleteDirectory);
-    newmark.Solve(simulationTime);
+    boost::filesystem::path p;
+    p = filename;
+    newmark.SetResultDirectory(p.stem().c_str(), deleteDirectory);
+    try
+    {
+        newmark.Solve(simulationTime);
+    }
+    catch(...)
+    {
+        std::cout << "Ahh, something went wrong." << std::endl;
+    }
 
     return 0;
 }

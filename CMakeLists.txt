@@ -45,7 +45,9 @@ if(ENABLE_MECHANICS)
   add_executable(khoury_cooling khoury_cooling.cpp)
   configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cylinder.msh
       ${CMAKE_CURRENT_BINARY_DIR}/cylinder.msh COPYONLY)
-  target_link_libraries(khoury_cooling NuToMechanics NuToMath NuToBase ${Boost_LIBRARIES} ${LAPACK_LIBRARIES} ${ANN_LIBRARIES})
+  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cylinder.geo
+      ${CMAKE_CURRENT_BINARY_DIR}/cylinder.geo COPYONLY)
+  target_link_libraries(khoury_cooling -lboost_program_options -lprofiler NuToMechanics NuToMath NuToBase ${Boost_LIBRARIES} ${LAPACK_LIBRARIES} ${ANN_LIBRARIES})
   if(ENABLE_VISUALIZE)
     target_link_libraries(khoury_cooling NuToVisualize)
   endif()
