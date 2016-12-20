@@ -1,111 +1,38 @@
 if(ENABLE_MECHANICS)
-  add_executable(SlabTransient SlabTransient.cpp)
-  target_link_libraries(SlabTransient NuToMechanics NuToMath NuToBase ${Boost_LIBRARIES} ${LAPACK_LIBRARIES} ${ANN_LIBRARIES})
-  if(ENABLE_VISUALIZE)
-    target_link_libraries(SlabTransient NuToVisualize)
-  endif()
-  if(MUMPS_FOUND)
-    target_link_libraries(SlabTransient ${MUMPS_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-  endif()
-endif()
+    foreach(meshfile
+            Temperature2DMeso.msh
+            Temperature2DHomogeneous.msh
+            OneStone.msh
+            TwoElements.msh
+            cylinder.msh
+            cylinder.geo
+            )
 
-if(ENABLE_MECHANICS)
-  add_executable(Coupled2DMesoTransient Coupled2DMesoTransient.cpp)
-  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Temperature2DMeso.msh
-      ${CMAKE_CURRENT_BINARY_DIR}/Temperature2DMesoTransient.msh COPYONLY)
-  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/OneStone.msh
-      ${CMAKE_CURRENT_BINARY_DIR}/OneStone.msh COPYONLY)
-  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/TwoElements.msh
-      ${CMAKE_CURRENT_BINARY_DIR}/TwoElements.msh COPYONLY)
-  target_link_libraries(Coupled2DMesoTransient NuToMechanics NuToMath NuToBase ${Boost_LIBRARIES} ${LAPACK_LIBRARIES} ${ANN_LIBRARIES})
-  if(ENABLE_VISUALIZE)
-    target_link_libraries(Coupled2DMesoTransient NuToVisualize)
-  endif()
-  if(MUMPS_FOUND)
-    target_link_libraries(Coupled2DMesoTransient ${MUMPS_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-  endif()
-endif()
+        configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${meshfile} ${CMAKE_CURRENT_BINARY_DIR}/${meshfile} COPYONLY)
+    endforeach()
 
-if(ENABLE_MECHANICS)
-  add_executable(Coupled2DDamageTransient Coupled2DDamageTransient.cpp)
-  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Temperature2DMeso.msh
-      ${CMAKE_CURRENT_BINARY_DIR}/Temperature2DMeso.msh COPYONLY)
-  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/TwoElements.msh
-      ${CMAKE_CURRENT_BINARY_DIR}/TwoElements.msh COPYONLY)
-  target_link_libraries(Coupled2DDamageTransient NuToMechanics NuToMath NuToBase ${Boost_LIBRARIES} ${LAPACK_LIBRARIES} ${ANN_LIBRARIES})
-  if(ENABLE_VISUALIZE)
-    target_link_libraries(Coupled2DDamageTransient NuToVisualize)
-  endif()
-  if(MUMPS_FOUND)
-    target_link_libraries(Coupled2DDamageTransient ${MUMPS_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-  endif()
-endif()
+    foreach(test 
+            SlabTransient
+            Coupled2DMesoTransient
+            Coupled2DDamageTransient
+            khoury_cooling
+            khoury_damage
+            TrussHeatCoupled
+            TrussHeatCoupledRestrained
+            TemperatureXdTransient
+            ThermoDamage
+            hancock1
+            damage_bar
+            )
 
-if(ENABLE_MECHANICS)
-  add_executable(khoury_cooling khoury_cooling.cpp)
-  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cylinder.msh
-      ${CMAKE_CURRENT_BINARY_DIR}/cylinder.msh COPYONLY)
-  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cylinder.geo
-      ${CMAKE_CURRENT_BINARY_DIR}/cylinder.geo COPYONLY)
-  target_link_libraries(khoury_cooling -lboost_program_options -lprofiler NuToMechanics NuToMath NuToBase ${Boost_LIBRARIES} ${LAPACK_LIBRARIES} ${ANN_LIBRARIES})
-  if(ENABLE_VISUALIZE)
-    target_link_libraries(khoury_cooling NuToVisualize)
-  endif()
-  if(MUMPS_FOUND)
-    target_link_libraries(khoury_cooling ${MUMPS_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-  endif()
-endif()
+        add_executable(${test} ${test}.cpp)
+        target_link_libraries(${test} NuToMechanics NuToMath NuToBase -lboost_program_options -lprofiler ${Boost_LIBRARIES} ${LAPACK_LIBRARIES} ${ANN_LIBRARIES})
+        if(ENABLE_VISUALIZE)
+            target_link_libraries(${test} NuToVisualize)
+        endif()
+        if(MUMPS_FOUND)
+            target_link_libraries(${test} ${MUMPS_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+        endif()
 
-if(ENABLE_MECHANICS)
-  add_executable(TrussHeatCoupled TrussHeatCoupled.cpp)
-  target_link_libraries(TrussHeatCoupled NuToMechanics NuToMath NuToBase ${Boost_LIBRARIES} ${LAPACK_LIBRARIES} ${ANN_LIBRARIES})
-  if(ENABLE_VISUALIZE)
-    target_link_libraries(TrussHeatCoupled NuToVisualize)
-  endif()
-  if(MUMPS_FOUND)
-    target_link_libraries(TrussHeatCoupled ${MUMPS_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-  endif()
-endif()
-
-if(ENABLE_MECHANICS)
-  add_executable(TrussHeatCoupledRestrained TrussHeatCoupledRestrained.cpp)
-  target_link_libraries(TrussHeatCoupledRestrained NuToMechanics NuToMath NuToBase ${Boost_LIBRARIES} ${LAPACK_LIBRARIES} ${ANN_LIBRARIES})
-  if(ENABLE_VISUALIZE)
-    target_link_libraries(TrussHeatCoupledRestrained NuToVisualize)
-  endif()
-  if(MUMPS_FOUND)
-    target_link_libraries(TrussHeatCoupledRestrained ${MUMPS_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-  endif()
-endif()
-
-if(ENABLE_MECHANICS)
-  add_executable(TemperatureXdTransient TemperatureXdTransient.cpp)
-  target_link_libraries(TemperatureXdTransient NuToMechanics NuToMath NuToBase ${Boost_LIBRARIES} ${LAPACK_LIBRARIES} ${ANN_LIBRARIES})
-  if(ENABLE_VISUALIZE)
-    target_link_libraries(TemperatureXdTransient NuToVisualize)
-  endif()
-  if(MUMPS_FOUND)
-    target_link_libraries(TemperatureXdTransient ${MUMPS_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-  endif()
-endif()
-
-if(ENABLE_MECHANICS)
-    add_executable(ThermoDamage ThermoDamage.cpp)
-    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Temperature2DHomogeneous.msh
-        ${CMAKE_CURRENT_BINARY_DIR}/Temperature2DHomogeneous.msh COPYONLY)
-    target_link_libraries(ThermoDamage NuToMechanics NuToMath NuToBase ${Boost_LIBRARIES} ${MUMPS_LIBRARIES})
-    if(ENABLE_VISUALIZE)
-        target_link_libraries(ThermoDamage NuToVisualize)
-    endif()
-endif()
-
-if(ENABLE_MECHANICS)
-  add_executable(hancock1 hancock1.cpp)
-  target_link_libraries(hancock1 NuToMechanics NuToMath NuToBase ${Boost_LIBRARIES} ${LAPACK_LIBRARIES} ${ANN_LIBRARIES})
-  if(ENABLE_VISUALIZE)
-    target_link_libraries(hancock1 NuToVisualize)
-  endif()
-  if(MUMPS_FOUND)
-    target_link_libraries(hancock1 ${MUMPS_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
-  endif()
+    endforeach()
 endif()

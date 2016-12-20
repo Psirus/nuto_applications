@@ -133,7 +133,7 @@ void SetInterpolation(NuTo::Structure& structure, int group)
     structure.InterpolationTypeAdd(group, NuTo::Node::eDof::TEMPERATURE,
             NuTo::Interpolation::eTypeOrder::EQUIDISTANT2);
     structure.InterpolationTypeAdd(group, NuTo::Node::eDof::NONLOCALEQSTRAIN,
-            NuTo::Interpolation::eTypeOrder::EQUIDISTANT2);
+            NuTo::Interpolation::eTypeOrder::EQUIDISTANT1);
     structure.InterpolationTypeSetIntegrationType(group, NuTo::eIntegrationType::IntegrationType3D4NGauss4Ip);
 }
 
@@ -260,7 +260,7 @@ int main(int ac, char* av[])
 
     structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, NuTo::FullVector<double,3>::UnitX(), 0.0);
     structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, NuTo::FullVector<double,3>::UnitY(), 0.0);
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, NuTo::FullVector<double,3>::UnitZ(), 0.0);
+    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, NuTo::FullVector<double,3>::UnitZ(), 1.0);
 
     structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, NuTo::FullVector<double,3>::UnitX(), 0.0);
     structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, NuTo::FullVector<double,3>::UnitY(), 0.0);
@@ -269,7 +269,7 @@ int main(int ac, char* av[])
     // temperature BC
     structure.SetNumLoadCases(1);
     auto side_bc = structure.ConstraintLinearSetTemperatureNodeGroup(nodesSide, 0.0);
-    structure.LoadSurfacePressureCreate3D(0, elementsTop, nodesTop, 10.0);
+    //structure.LoadSurfacePressureCreate3D(0, elementsTop, nodesTop, 10.0);
 
     // solve system
     NuTo::NewmarkDirect newmark(&structure);
@@ -287,14 +287,7 @@ int main(int ac, char* av[])
     boost::filesystem::path p;
     p = filename;
     newmark.SetResultDirectory(p.stem().c_str(), deleteDirectory);
-    try
-    {
-        newmark.Solve(simulationTime);
-    }
-    catch(...)
-    {
-        std::cout << "Ahh, something went wrong." << std::endl;
-    }
+    newmark.Solve(simulationTime);
 
     return 0;
 }

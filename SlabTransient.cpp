@@ -59,11 +59,11 @@ int main()
     structure.InterpolationTypeSetIntegrationType(InterpolationType, "1D2NGauss2Ip");
 
     // create elements
-    NuTo::FullVector<int,Eigen::Dynamic> elementIncidence(2);
+    std::vector<int> elementIncidence(2);
     for(int element = 0; element < num_elements; element++)
     {
-        elementIncidence(0) = element;
-        elementIncidence(1) = element + 1;
+        elementIncidence[0] = element;
+        elementIncidence[1] = element + 1;
         structure.ElementCreate(InterpolationType, elementIncidence);
         structure.ElementSetSection(element, truss);
         structure.ElementSetConstitutiveLaw(element, material);
