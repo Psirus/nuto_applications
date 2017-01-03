@@ -1,12 +1,12 @@
-#include "nuto/mechanics/structures/unstructured/Structure.h"
-#include "nuto/mechanics/tools/MeshGenerator.h"
-#include "nuto/mechanics/timeIntegration/NewmarkDirect.h"
-#include "nuto/mechanics/constitutive/ConstitutiveEnum.h"
-#include "nuto/mechanics/interpolationtypes/InterpolationTypeEnum.h"
-#include "nuto/mechanics/groups/GroupEnum.h"
-#include "nuto/mechanics/nodes/NodeEnum.h"
-#include "nuto/visualize/VisualizeEnum.h"
-#include "nuto/math/FullVector.h"
+#include "mechanics/structures/unstructured/Structure.h"
+#include "mechanics/tools/MeshGenerator.h"
+#include "mechanics/timeIntegration/NewmarkDirect.h"
+#include "mechanics/constitutive/ConstitutiveEnum.h"
+#include "mechanics/interpolationtypes/InterpolationTypeEnum.h"
+#include "mechanics/groups/GroupEnum.h"
+#include "mechanics/nodes/NodeEnum.h"
+#include "visualize/VisualizeEnum.h"
+#include "math/FullVector.h"
 
 template<int TDim>
 double analytic_solution(std::vector<double> x, double t)

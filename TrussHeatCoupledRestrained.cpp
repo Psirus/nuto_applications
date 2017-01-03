@@ -1,13 +1,13 @@
 #include <iostream>
-#include "nuto/math/FullMatrix.h"
-#include "nuto/math/SparseMatrixCSRGeneral.h"
-#include "nuto/math/SparseDirectSolverMUMPS.h"
-#include "nuto/mechanics/structures/unstructured/Structure.h"
-#include "nuto/mechanics/constitutive/laws/AdditiveInputExplicit.h"
-#include "nuto/mechanics/constitutive/laws/AdditiveOutput.h"
-#include "nuto/mechanics/tools/MeshGenerator.h"
-#include "nuto/mechanics/MechanicsEnums.h"
-#include "nuto/visualize/VisualizeEnum.h"
+#include "math/FullMatrix.h"
+#include "math/SparseMatrixCSRGeneral.h"
+#include "math/SparseDirectSolverMUMPS.h"
+#include "mechanics/structures/unstructured/Structure.h"
+#include "mechanics/constitutive/laws/AdditiveInputExplicit.h"
+#include "mechanics/constitutive/laws/AdditiveOutput.h"
+#include "mechanics/tools/MeshGenerator.h"
+#include "mechanics/MechanicsEnums.h"
+#include "visualize/VisualizeEnum.h"
 
 int SetConstitutiveLaws(NuTo::Structure &structure)
 {

@@ -1,12 +1,12 @@
 #include <cmath>
-#include "nuto/math/FullMatrix.h"
-#include "nuto/math/SparseMatrixCSRGeneral.h"
-#include "nuto/math/SparseDirectSolverMUMPS.h"
-#include "nuto/mechanics/structures/unstructured/Structure.h"
-#include "nuto/mechanics/timeIntegration/NewmarkDirect.h"
-#include "nuto/mechanics/tools/MeshGenerator.h"
-#include "nuto/mechanics/MechanicsEnums.h"
-#include "nuto/visualize/VisualizeEnum.h"
+#include "math/FullMatrix.h"
+#include "math/SparseMatrixCSRGeneral.h"
+#include "math/SparseDirectSolverMUMPS.h"
+#include "mechanics/structures/unstructured/Structure.h"
+#include "mechanics/timeIntegration/NewmarkDirect.h"
+#include "mechanics/tools/MeshGenerator.h"
+#include "mechanics/MechanicsEnums.h"
+#include "visualize/VisualizeEnum.h"
 
 const double length = 10.0;
 const double height = 10.0;

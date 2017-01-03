@@ -1,15 +1,15 @@
 #include <iostream>
-#include "nuto/math/FullMatrix.h"
-#include "nuto/math/SparseMatrixCSRGeneral.h"
-#include "nuto/math/SparseDirectSolverMUMPS.h"
-#include "nuto/mechanics/structures/unstructured/Structure.h"
-#include "nuto/mechanics/timeIntegration/NewmarkDirect.h"
-#include "nuto/mechanics/constitutive/ConstitutiveEnum.h"
-#include "nuto/mechanics/interpolationtypes/InterpolationTypeEnum.h"
-#include "nuto/mechanics/nodes/NodeEnum.h"
-#include "nuto/mechanics/nodes/NodeBase.h"
-#include "nuto/mechanics/groups/GroupEnum.h"
-#include "nuto/visualize/VisualizeEnum.h"
+#include "math/FullMatrix.h"
+#include "math/SparseMatrixCSRGeneral.h"
+#include "math/SparseDirectSolverMUMPS.h"
+#include "mechanics/structures/unstructured/Structure.h"
+#include "mechanics/timeIntegration/NewmarkDirect.h"
+#include "mechanics/constitutive/ConstitutiveEnum.h"
+#include "mechanics/interpolationtypes/InterpolationTypeEnum.h"
+#include "mechanics/nodes/NodeEnum.h"
+#include "mechanics/nodes/NodeBase.h"
+#include "mechanics/groups/GroupEnum.h"
+#include "visualize/VisualizeEnum.h"
 
 int main()
 {
