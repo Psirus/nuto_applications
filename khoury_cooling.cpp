@@ -2,7 +2,6 @@
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 #include <cmath>
-#include "math/FullMatrix.h"
 #include "math/SparseMatrixCSRGeneral.h"
 #include "math/SparseDirectSolverMUMPS.h"
 #include "math/LinearInterpolation.h"
@@ -208,7 +207,7 @@ int main(int ac, char* av[])
     auto section = structure.SectionCreate("Volume");
     structure.ElementTotalSetSection(section);
 
-    auto matrix_group = groupIndices.GetValue(0, 0);
+    auto matrix_group = groupIndices[0].first;
     //auto aggregate_group = groupIndices.GetValue(1, 0);
 
     // set constitutive laws
@@ -222,7 +221,7 @@ int main(int ac, char* av[])
     //SetConstitutiveLaws(structure, aggregate_group, aggregate_properties, SandstoneExpansion);
 
     // set interpolation types
-    auto interpolation = groupIndices.GetValue(0, 1);
+    auto interpolation = groupIndices[0].second;
     //auto interpolationMatrix = groupIndices.GetValue(0,1);
     //auto interpolationAggreg = groupIndices.GetValue(1,1);
 
@@ -248,8 +247,8 @@ int main(int ac, char* av[])
     structure.GroupAddNodeFunction(nodesSide, node_is_on_side);
 
     // displacement BC
-    NuTo::FullVector<double, Eigen::Dynamic> coordinates_right = std::vector<double>({radius, 0.0, 0.0});
-    NuTo::FullVector<double, Eigen::Dynamic> coordinates_left = std::vector<double>({0.0, radius, 0.0});
+    Eigen::Vector3d coordinates_right = {radius, 0.0, 0.0};
+    Eigen::Vector3d coordinates_left = {0.0, radius, 0.0};
    // for (auto coordinate : std::vector<NuTo::FullVector<double, Eigen::Dynamic>>({coordinates_left, coordinates_right}))
    // {
    //     auto node_id = structure.NodeGetIdAtCoordinate(coordinate, 1e-6);
@@ -258,12 +257,12 @@ int main(int ac, char* av[])
    //     structure.ConstraintLinearSetDisplacementNode(node, NuTo::FullVector<double, 3>::UnitY(), 0.0);
    // }
 
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, NuTo::FullVector<double,3>::UnitX(), 0.0);
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, NuTo::FullVector<double,3>::UnitY(), 0.0);
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, NuTo::FullVector<double,3>::UnitZ(), 1.0);
+    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitX(), 0.0);
+    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitY(), 0.0);
+    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitZ(), 1.0);
 
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, NuTo::FullVector<double,3>::UnitX(), 0.0);
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, NuTo::FullVector<double,3>::UnitY(), 0.0);
+    structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, Eigen::Vector3d::UnitX(), 0.0);
+    structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, Eigen::Vector3d::UnitY(), 0.0);
 
 
     // temperature BC

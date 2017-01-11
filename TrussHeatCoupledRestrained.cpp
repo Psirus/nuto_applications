@@ -1,5 +1,4 @@
 #include <iostream>
-#include "math/FullMatrix.h"
 #include "math/SparseMatrixCSRGeneral.h"
 #include "math/SparseDirectSolverMUMPS.h"
 #include "mechanics/structures/unstructured/Structure.h"
@@ -89,8 +88,7 @@ int main()
     structure.ElementTotalConvertToInterpolationType();
 
 	// set boundary conditions and loads
-	NuTo::FullVector<double,Eigen::Dynamic> direction(1);
-	direction(0) = 1;
+    auto direction = Eigen::Matrix<double, 1, 1>::Ones();
 	structure.ConstraintLinearSetDisplacementNode(0, direction, 0.0);
 	structure.ConstraintLinearSetDisplacementNode(structure.GetNumNodes() - 1, direction, 0.0);
 	structure.SetNumLoadCases(1);

@@ -1,6 +1,5 @@
 #include <iostream>
 #include <cmath>
-#include "math/FullMatrix.h"
 #include "math/SparseMatrixCSRGeneral.h"
 #include "math/SparseDirectSolverMUMPS.h"
 #include "math/LinearInterpolation.h"
@@ -222,16 +221,16 @@ int main()
     structure.SectionSetThickness(section, thickness);
     structure.ElementTotalSetSection(section);
 
-    auto matrix_group = groupIndices.GetValue(0, 0);
-    auto aggregate_group = groupIndices.GetValue(1, 0);
+    auto matrix_group = groupIndices[0].first;
+    auto aggregate_group = groupIndices[1].first;
 
     SetConstitutiveLawMatrix(structure, matrix_group, CruzGillenCement);
 
     SetConstitutiveLawAggregate(structure, aggregate_group, SandstoneExpansion);
 
     // set interpolation types
-    auto interpolationMatrix = groupIndices.GetValue(0,1);
-    auto interpolationAggreg = groupIndices.GetValue(1,1);
+    auto interpolationMatrix = groupIndices[0].second;
+    auto interpolationAggreg = groupIndices[1].second;
 
     SetInterpolationMatrix(structure, interpolationMatrix);
     SetInterpolationAggregates(structure, interpolationAggreg);
@@ -252,9 +251,9 @@ int main()
     structure.GroupAddNodeCoordinateRange(nodesNorth, 1, 20.0, 20.0);
 
     // displacement BC
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesWest, NuTo::FullVector<double,2>::UnitX(), 0.0);
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesSouth, NuTo::FullVector<double,2>::UnitY(), 0.0);
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesNorth, NuTo::FullVector<double,2>::UnitY(), 0.0);
+    structure.ConstraintLinearSetDisplacementNodeGroup(nodesWest, Eigen::Vector2d::UnitX(), 0.0);
+    structure.ConstraintLinearSetDisplacementNodeGroup(nodesSouth, Eigen::Vector2d::UnitY(), 0.0);
+    structure.ConstraintLinearSetDisplacementNodeGroup(nodesNorth, Eigen::Vector2d::UnitY(), 0.0);
 
     // temperature BC
     structure.SetNumLoadCases(1);

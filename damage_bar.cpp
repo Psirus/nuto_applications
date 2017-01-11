@@ -1,8 +1,4 @@
-// At the moment, this does do what you would expect. It has a negative expansion coefficient, to sort of model the
-// tensile test from the Peerlings paper
-#include <boost/ptr_container/ptr_vector.hpp>
-
-#include "math/FullVector.h"
+#include "base/CallbackInterface.h"
 #include "math/LinearInterpolation.h"
 #include "mechanics/structures/unstructured/Structure.h"
 #include "mechanics/nodes/NodeDof.h"
@@ -55,7 +51,7 @@ void SetConstitutiveLawConcrete(NuTo::Structure &structure)
     int thermal_strains_id = structure.ConstitutiveLawCreate(
             NuTo::Constitutive::eConstitutiveType::THERMAL_STRAINS);
     structure.ConstitutiveLawSetParameterDouble(thermal_strains_id,
-            NuTo::Constitutive::eConstitutiveParameter::THERMAL_EXPANSION_COEFFICIENT, -20e-6);
+            NuTo::Constitutive::eConstitutiveParameter::THERMAL_EXPANSION_COEFFICIENT, 20e-6);
 
     auto additive_input =
         static_cast<NuTo::AdditiveInputExplicit*>(structure.ConstitutiveLawGetConstitutiveLawPtr(additive_input_id));
@@ -74,6 +70,39 @@ void SetConstitutiveLawConcrete(NuTo::Structure &structure)
     structure.ElementTotalSetConstitutiveLaw(additive_output_id);
 }
 
+class SaveStresses : public CallbackInterface
+{
+public:
+    SaveStresses(int lastNode) : mLastNode(lastNode) {}
+
+    bool Exit(StructureBase& structure)
+    {
+        auto stress = structure.ElementGetEngineeringStress(0); 
+        double stress_xx = stress(0, 0);
+        mStresses.push_back(stress_xx);
+
+        Eigen::VectorXd displacements;
+        structure.NodeGetDisplacements(mLastNode, displacements);
+        mDisplacements.push_back(displacements(0));
+        return false;
+    }
+
+    std::vector<double> GetStresses()
+    {
+        return mStresses;
+    }
+
+    std::vector<double> GetDisplacements()
+    {
+        return mDisplacements;
+    }
+
+private:
+    std::vector<double> mStresses;
+    std::vector<double> mDisplacements;
+    int mLastNode;
+};
+
 int main()
 {
     Structure structure(1);
@@ -88,8 +117,8 @@ int main()
     structure.InterpolationTypeAdd(
             interpolationType, Node::eDof::TEMPERATURE, Interpolation::eTypeOrder::EQUIDISTANT1);
 
-    NuTo::FullVector<double, 1> coordinates;
-    coordinates[0] = 0.0;
+    Eigen::Matrix<double, 1, 1> coordinates;
+    coordinates.setZero();
 
     const double length = 100.0;
     const double weakened_zone_length = 10.0;
@@ -135,21 +164,45 @@ int main()
     structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::DAMAGE);
     structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::TEMPERATURE);
 
+    double temperature = 10.0;
+    for (auto nodePair : structure.NodeGetNodeMap())
+    {
+        auto node = structure.NodeGetNodePtr(nodePair.first);
+        auto tempVec = temperature*Eigen::Matrix<double, 1, 1>::Ones();
+        try
+        {
+            node->Set(Node::eDof::TEMPERATURE, 0, tempVec);
+        }
+        catch (...) {}
+    }
+
+    double startDisplacement = length*20e-6*temperature;
+    std::cout << startDisplacement;
+    startDisplacement = 0.0;
+
     Eigen::MatrixXd direction(1, 1);
     direction.setOnes(1, 1);
     structure.ConstraintLinearSetDisplacementNode(0, direction, 0.0);
-    structure.ConstraintLinearSetDisplacementNode(nodeIDs[0], direction, 0.0);
-    int leftBC = structure.ConstraintLinearSetTemperatureNode(0, 0.0);
-    int rightBC = structure.ConstraintLinearSetTemperatureNode(nodeIDs[0], 0.0);
+    int rightBC = structure.ConstraintLinearSetDisplacementNode(nodeIDs[0], direction, startDisplacement);
+    structure.ConstraintLinearSetTemperatureNode(0, temperature);
+    structure.ConstraintLinearSetTemperatureNode(nodeIDs[0], temperature);
+
+    SaveStresses saveStresses(nodeIDs[0]);
 
     NuTo::NewmarkDirect newmark(&structure);
     Eigen::Matrix<double, 2, 2> loadFactor;
-    loadFactor << 0.0, 0.0, 1.0, 25.0;
-    newmark.SetTimeStep(0.1);
+    loadFactor << 0.0, startDisplacement, 1.0, startDisplacement-0.5;
+    newmark.SetTimeStep(0.05);
     newmark.AddTimeDependentConstraint(rightBC, loadFactor);
-    newmark.AddTimeDependentConstraint(leftBC, loadFactor);
     newmark.SetResultDirectory("damage_bar_results", true);
+    newmark.ConnectCallback(&saveStresses);
     newmark.Solve(1.0);
+
+    for (auto stress : saveStresses.GetStresses())
+        std::cout << stress << std::endl;
+
+    for (auto displacement : saveStresses.GetDisplacements())
+        std::cout << displacement << std::endl;
 
     return 0;
 }

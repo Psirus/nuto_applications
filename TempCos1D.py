@@ -8,6 +8,7 @@ conductivity = 0.061644
 capacity = 1.0
 density = 1.0
 
+
 def analytic_solution(x, t=0.0):
     u = np.sin(2.0)/2.0
     for i in range(1, 10):
@@ -15,21 +16,22 @@ def analytic_solution(x, t=0.0):
         u += A * np.cos(i*np.pi*x) * np.exp(-conductivity*i**2*np.pi**2*t)
     return u
 
+
 def initial_distribution(x):
-    return np.cos(2*x);
+    return np.cos(2*x)
+
 
 def interpolate(structure, function):
     num_nodes = structure.GetNumNodes()
 
-    coordinates = nuto.DoubleFullVector(1)
-    x = np.empty((1, 1))
+    coordinates = np.empty((1, 1))
     for i in range(num_nodes):
         structure.NodeGetCoordinates(i, coordinates)
-        coordinates.convrtMatrixToNumpy(x)
-        value = function(x[0][0])
-        structure.NodeSetTemperature(i, value)
-        #structure.NodeSetTemperature(i, 1, 2.0)
+        value = function(coordinates[0][0])
+        # structure.NodeSetTemperature(i, value)
+        structure.NodeSetTemperature(i, 2.0)
     return structure
+
 
 def create_structure():
     # Geometry/Mesh
@@ -51,23 +53,19 @@ def create_structure():
     structure.ConstitutiveLawSetParameterDouble(material, "Density", density)
 
     # create nodes
-    node_coordinates = nuto.DoubleFullVector(1)
     for node in range(0, number_of_elements + 1):
-        node_coordinates.SetValue(0, 0, node * length/number_of_elements)
-        structure.NodeCreate(node, node_coordinates)
+        coordinate = node * length/number_of_elements
+        structure.NodeCreate(node, np.r_[coordinate])
 
     # create interpolation type
     truss_interpolation = structure.InterpolationTypeCreate("Truss1D")
     structure.InterpolationTypeAdd(truss_interpolation, "coordinates", "equidistant1")
     structure.InterpolationTypeAdd(truss_interpolation, "temperature", "equidistant1")
-    structure.InterpolationTypeSetIntegrationType(truss_interpolation, "1D2NGauss2Ip", "noipdata")
+    structure.InterpolationTypeSetIntegrationType(truss_interpolation, "1D2NGauss2Ip")
 
     # create elements
-    element_incidence = nuto.IntFullVector(2)
     for element in range(0, number_of_elements):
-        element_incidence.SetValue(0, 0, element)
-        element_incidence.SetValue(1, 0, element + 1)
-        structure.ElementCreate(truss_interpolation, element_incidence)
+        structure.ElementCreate(truss_interpolation, [element, element+1])
         structure.ElementSetSection(element, section)
         structure.ElementSetConstitutiveLaw(element, material)
 
@@ -97,18 +95,17 @@ def transient_solve(structure):
 
 def compare_to_analytic(structure):
     num_nodes = structure.GetNumNodes()
-    coordinates = nuto.DoubleFullVector(1)
-    x = np.empty((1, 1))
+    coordinates = np.empty((1, 1))
     exact_values = np.empty(num_nodes)
     fem_values = np.empty(num_nodes)
     for i in range(num_nodes):
         transient_structure.NodeGetCoordinates(i, coordinates)
-        coordinates.convrtMatrixToNumpy(x)
-        exact_values[i] = analytic_solution(x[0][0], 12.0)
+        exact_values[i] = analytic_solution(coordinates[0][0], 12.0)
         fem_values[i] = structure.NodeGetTemperature(i)
 
     errornorm = np.linalg.norm(exact_values - fem_values, 1) / np.linalg.norm(exact_values, 1)
     print(errornorm)
+
 
 if __name__ == "__main__":
     transient_structure = create_structure()

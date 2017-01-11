@@ -2,7 +2,6 @@
 #include <boost/program_options.hpp>
 #include <boost/filesystem.hpp>
 #include <cmath>
-#include "math/FullMatrix.h"
 #include "math/SparseMatrixCSRGeneral.h"
 #include "math/SparseDirectSolverMUMPS.h"
 #include "math/LinearInterpolation.h"
@@ -128,14 +127,14 @@ int main(int ac, char* av[])
     auto section = structure.SectionCreate("Volume");
     structure.ElementTotalSetSection(section);
 
-    auto matrix_group = groupIndices.GetValue(0, 0);
+    auto matrix_group = groupIndices[0].first;
 
     // set constitutive laws
     Properties concrete = {41071.0, 893e-6, 1.89, 2899.0, 17.3e-6};
     SetConstitutiveLaws(structure, matrix_group, concrete);
 
     // set interpolation types
-    auto interpolation = groupIndices.GetValue(0, 1);
+    auto interpolation = groupIndices[0].second;
     SetInterpolation(structure, interpolation);
     structure.ElementTotalConvertToInterpolationType();
 
@@ -150,12 +149,12 @@ int main(int ac, char* av[])
     auto elementsTop = structure.GroupCreate(NuTo::eGroupId::Elements);
     structure.GroupAddElementsFromNodes(elementsTop, nodesTop, true);
 
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, NuTo::FullVector<double, 3>::UnitX(), 0.0);
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, NuTo::FullVector<double, 3>::UnitY(), 0.0);
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, NuTo::FullVector<double, 3>::UnitZ(), 0.0);
+    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitX(), 0.0);
+    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitY(), 0.0);
+    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitZ(), 0.0);
 
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, NuTo::FullVector<double, 3>::UnitX(), 0.0);
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, NuTo::FullVector<double, 3>::UnitY(), 0.0);
+    structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, Eigen::Vector3d::UnitX(), 0.0);
+    structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, Eigen::Vector3d::UnitY(), 0.0);
 
     // set load
     structure.SetNumLoadCases(1);

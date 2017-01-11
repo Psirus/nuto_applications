@@ -1,5 +1,4 @@
 #include <cmath>
-#include "math/FullMatrix.h"
 #include "math/SparseMatrixCSRGeneral.h"
 #include "math/SparseDirectSolverMUMPS.h"
 #include "mechanics/structures/unstructured/Structure.h"
@@ -49,7 +48,7 @@ double CompareToAnalyticSolution(NuTo::Structure &structure, double simulationTi
 {
     int numNodes = structure.GetNumNodes();
     Eigen::VectorXd fem_values(numNodes), exact_values(numNodes);
-    NuTo::FullVector<double, Eigen::Dynamic> coordinates(2);
+    Eigen::VectorXd coordinates(2);
     for(int node = 0; node < numNodes; ++node)
     {
         structure.NodeGetCoordinates(node, coordinates);

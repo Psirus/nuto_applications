@@ -1,5 +1,4 @@
 #include <iostream>
-#include "math/FullMatrix.h"
 #include "math/SparseMatrixCSRGeneral.h"
 #include "math/SparseDirectSolverMUMPS.h"
 #include "mechanics/structures/unstructured/Structure.h"
@@ -44,11 +43,10 @@ int main()
             NuTo::Constitutive::eConstitutiveParameter::DENSITY, density);
 
     // create nodes
-    NuTo::FullVector<double,Eigen::Dynamic> nodeCoordinates(1);
     for(int node = 0; node < num_elements + 1; node++)
     {
-        nodeCoordinates(0) = node * length/num_elements;
-        structure.NodeCreate(node, nodeCoordinates);
+        double coordinate = node * length/num_elements;
+        structure.NodeCreate(node, Eigen::Vector3d({coordinate, 0.0, 0.0}));
     }
 
     auto InterpolationType = structure.InterpolationTypeCreate("Truss1D");

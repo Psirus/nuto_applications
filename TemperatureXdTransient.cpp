@@ -6,7 +6,6 @@
 #include "mechanics/groups/GroupEnum.h"
 #include "mechanics/nodes/NodeEnum.h"
 #include "visualize/VisualizeEnum.h"
-#include "math/FullVector.h"
 
 template<int TDim>
 double analytic_solution(std::vector<double> x, double t)
@@ -37,10 +36,10 @@ void SetConstraints(NuTo::Structure &structure, NuTo::TimeIntegrationBase &newma
 {
     int constraint;
     double initial_temperature, end_temperature;
-    NuTo::FullVector<double, Eigen::Dynamic> coordinates(2);
-    NuTo::FullMatrix<double, 2, 2> tempRHS;
-    tempRHS.SetValue(0, 0, 0.0);
-    tempRHS.SetValue(1, 0, simulationTime);
+    Eigen::VectorXd coordinates(2);
+    Eigen::Matrix<double, 2, 2> tempRHS;
+    tempRHS(0, 0) = 0.0;
+    tempRHS(1, 0) = simulationTime;
     for(int node = 0; node < structure.GetNumNodes(); ++node)
     {
         structure.NodeGetCoordinates(node, coordinates);
@@ -49,8 +48,8 @@ void SetConstraints(NuTo::Structure &structure, NuTo::TimeIntegrationBase &newma
         {
             initial_temperature = analytic_solution<2>({coordinates[0], coordinates[1], 0.0}, 0.0);
             end_temperature = analytic_solution<2>({coordinates[0], coordinates[1], 0.0}, simulationTime);
-            tempRHS.SetValue(0, 1, initial_temperature);
-            tempRHS.SetValue(1, 1, end_temperature);
+            tempRHS(0, 1) = initial_temperature;
+            tempRHS(1, 1) = end_temperature;
             constraint = structure.ConstraintLinearSetTemperatureNode(node, initial_temperature);
             newmark.AddTimeDependentConstraint(constraint, tempRHS);
         }
@@ -60,7 +59,7 @@ void SetConstraints(NuTo::Structure &structure, NuTo::TimeIntegrationBase &newma
 void SetInitialCondition(NuTo::Structure &structure)
 {
     double temperature;
-    NuTo::FullVector<double, Eigen::Dynamic> coordinates(2);
+    Eigen::VectorXd coordinates(2);
     for(int node = 0; node < structure.GetNumNodes(); ++node)
     {
         structure.NodeGetCoordinates(node, coordinates);
@@ -73,7 +72,7 @@ double CompareToAnalyticSolution(NuTo::Structure &structure, double simulationTi
 {
     int numNodes = structure.GetNumNodes();
     Eigen::VectorXd fem_values(numNodes), exact_values(numNodes);
-    NuTo::FullVector<double, Eigen::Dynamic> coordinates(2);
+    Eigen::VectorXd coordinates(2);
     for(int node = 0; node < numNodes; ++node)
     {
         structure.NodeGetCoordinates(node, coordinates);
