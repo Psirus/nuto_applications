@@ -29,6 +29,7 @@ interpolationAggreg = groupIndices[1][1]
 structure.InterpolationTypeAdd(interpolationMatrix, "temperature", "equidistant2")
 structure.InterpolationTypeAdd(interpolationAggreg, "temperature", "equidistant2")
 
+structure.InterpolationTypeSetIntegrationType(interpolationMatrix, nuto.eIntegrationType_IntegrationType2D4NGauss4Ip)
 structure.ElementTotalConvertToInterpolationType()
 
 # create material law

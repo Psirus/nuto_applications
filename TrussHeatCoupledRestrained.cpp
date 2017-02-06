@@ -4,7 +4,7 @@
 #include "mechanics/structures/unstructured/Structure.h"
 #include "mechanics/constitutive/laws/AdditiveInputExplicit.h"
 #include "mechanics/constitutive/laws/AdditiveOutput.h"
-#include "mechanics/tools/MeshGenerator.h"
+#include "mechanics/mesh/MeshGenerator.h"
 #include "mechanics/MechanicsEnums.h"
 #include "visualize/VisualizeEnum.h"
 
@@ -70,7 +70,11 @@ int main()
 
     auto additive_output = SetConstitutiveLaws(structure);
 
-    int interpolationType = structure.InterpolationTypeCreate("Truss1D");
+    std::array<int, 1> numElements {10};
+    std::array<double, 1> length {10.0};
+    int group, interpolationType;
+    std::tie(group, interpolationType) = NuTo::MeshGenerator::Grid<1>(structure, length, numElements);
+
     structure.InterpolationTypeAdd(interpolationType, NuTo::Node::eDof::COORDINATES,
             NuTo::Interpolation::eTypeOrder::EQUIDISTANT1);
     structure.InterpolationTypeAdd(interpolationType, NuTo::Node::eDof::DISPLACEMENTS,
@@ -78,10 +82,8 @@ int main()
     structure.InterpolationTypeAdd(interpolationType, NuTo::Node::eDof::TEMPERATURE,
             NuTo::Interpolation::eTypeOrder::EQUIDISTANT1);
 
-    std::array<int, 1> numElements {10};
-    std::array<double, 1> length {10.0};
-    NuTo::MeshGenerator::MeshLineSegment(structure, section, additive_output,
-            interpolationType, numElements, length);
+    structure.ElementTotalSetSection(section);
+    structure.ElementTotalSetConstitutiveLaw(additive_output);
 
     structure.InterpolationTypeSetIntegrationType(interpolationType, NuTo::eIntegrationType::IntegrationType1D2NGauss4Ip);
 

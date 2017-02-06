@@ -21,7 +21,7 @@ structure.SectionSetThickness(plane_section, thickness)
 groupIndices = structure.ImportFromGmsh("./Temperature2DMeso.msh")
 
 matrix_group = groupIndices[0][0]
-aggregate_group = groupIndices[0][0]
+aggregate_group = groupIndices[1][0]
 
 interpolationMatrix = groupIndices[0][1]
 interpolationAggreg = groupIndices[1][1]

@@ -6,6 +6,7 @@ if(ENABLE_MECHANICS)
             TwoElements.msh
             cylinder.msh
             cylinder.geo
+            Coarse2D.msh
             )
 
         configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${meshfile} ${CMAKE_CURRENT_BINARY_DIR}/${meshfile} COPYONLY)
@@ -15,6 +16,9 @@ if(ENABLE_MECHANICS)
             SlabTransient
             Coupled2DMesoTransient
             Coupled2DDamageTransient
+            DamageShell
+            DamageShellNonlinear
+            DamageShellMeso
             khoury_cooling
             khoury_damage
             TrussHeatCoupled

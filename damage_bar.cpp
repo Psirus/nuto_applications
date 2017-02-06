@@ -29,8 +29,6 @@ void SetConstitutiveLawConcrete(NuTo::Structure &structure)
     structure.ConstitutiveLawSetParameterDouble(damage_id,
             NuTo::Constitutive::eConstitutiveParameter::NONLOCAL_RADIUS, 1.3);
     structure.ConstitutiveLawSetParameterDouble(damage_id,
-            NuTo::Constitutive::eConstitutiveParameter::NONLOCAL_RADIUS_PARAMETER, 0.);
-    structure.ConstitutiveLawSetParameterDouble(damage_id,
             NuTo::Constitutive::eConstitutiveParameter::TENSILE_STRENGTH, 4.);
     structure.ConstitutiveLawSetParameterDouble(damage_id,
             NuTo::Constitutive::eConstitutiveParameter::COMPRESSIVE_STRENGTH, 4. * 10);
@@ -44,7 +42,7 @@ void SetConstitutiveLawConcrete(NuTo::Structure &structure)
     structure.ConstitutiveLawSetParameterDouble(heat_conduction_id,
             NuTo::Constitutive::eConstitutiveParameter::HEAT_CAPACITY, 1000e-6);
     structure.ConstitutiveLawSetParameterDouble(heat_conduction_id,
-            NuTo::Constitutive::eConstitutiveParameter::THERMAL_CONDUCTIVITY, 1.1);
+            NuTo::Constitutive::eConstitutiveParameter::THERMAL_CONDUCTIVITY, 1.1e6);
     structure.ConstitutiveLawSetParameterDouble(heat_conduction_id,
             NuTo::Constitutive::eConstitutiveParameter::DENSITY, 3120.0);
 
@@ -106,7 +104,7 @@ private:
 int main()
 {
     Structure structure(1);
-    structure.SetNumTimeDerivatives(0);
+    structure.SetNumTimeDerivatives(2);
 
     auto interpolationType = structure.InterpolationTypeCreate(Interpolation::eShapeType::TRUSS1D);
     structure.InterpolationTypeAdd(interpolationType, Node::eDof::COORDINATES, Interpolation::eTypeOrder::EQUIDISTANT1);
@@ -164,39 +162,32 @@ int main()
     structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::DAMAGE);
     structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::TEMPERATURE);
 
-    double temperature = 10.0;
-    for (auto nodePair : structure.NodeGetNodeMap())
-    {
-        auto node = structure.NodeGetNodePtr(nodePair.first);
-        auto tempVec = temperature*Eigen::Matrix<double, 1, 1>::Ones();
-        try
-        {
-            node->Set(Node::eDof::TEMPERATURE, 0, tempVec);
-        }
-        catch (...) {}
-    }
-
-    double startDisplacement = length*20e-6*temperature;
-    std::cout << startDisplacement;
-    startDisplacement = 0.0;
-
     Eigen::MatrixXd direction(1, 1);
     direction.setOnes(1, 1);
     structure.ConstraintLinearSetDisplacementNode(0, direction, 0.0);
-    int rightBC = structure.ConstraintLinearSetDisplacementNode(nodeIDs[0], direction, startDisplacement);
-    structure.ConstraintLinearSetTemperatureNode(0, temperature);
-    structure.ConstraintLinearSetTemperatureNode(nodeIDs[0], temperature);
+    int rightBC = structure.ConstraintLinearSetDisplacementNode(nodeIDs[0], direction, 0.0);
+    int leftTemp = structure.ConstraintLinearSetTemperatureNode(0, 0.0);
+    int rightTemp = structure.ConstraintLinearSetTemperatureNode(nodeIDs[0], 0.0);
 
     SaveStresses saveStresses(nodeIDs[0]);
 
     NuTo::NewmarkDirect newmark(&structure);
-    Eigen::Matrix<double, 2, 2> loadFactor;
-    loadFactor << 0.0, startDisplacement, 1.0, startDisplacement-0.5;
+
+    Eigen::Matrix<double, 3, 2> displacementEvolution;
+    displacementEvolution << 0.0, 0.0, 1.0, 0.0, 2.0, -0.5;
+    newmark.AddTimeDependentConstraint(rightBC, displacementEvolution);
+
+    double temperature = 30.0;
+    Eigen::Matrix<double, 3, 2> temperatureEvolution;
+    temperatureEvolution << 0.0, 0.0, 1.0, temperature, 2.0, temperature;
+    newmark.AddTimeDependentConstraint(leftTemp, temperatureEvolution);
+    newmark.AddTimeDependentConstraint(rightTemp, temperatureEvolution);
+
     newmark.SetTimeStep(0.05);
-    newmark.AddTimeDependentConstraint(rightBC, loadFactor);
     newmark.SetResultDirectory("damage_bar_results", true);
     newmark.ConnectCallback(&saveStresses);
-    newmark.Solve(1.0);
+    newmark.SetPerformLineSearch(true);
+    newmark.Solve(2.0);
 
     for (auto stress : saveStresses.GetStresses())
         std::cout << stress << std::endl;

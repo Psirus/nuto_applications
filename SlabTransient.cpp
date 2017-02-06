@@ -3,11 +3,8 @@
 #include "math/SparseDirectSolverMUMPS.h"
 #include "mechanics/structures/unstructured/Structure.h"
 #include "mechanics/timeIntegration/NewmarkDirect.h"
-#include "mechanics/constitutive/ConstitutiveEnum.h"
-#include "mechanics/interpolationtypes/InterpolationTypeEnum.h"
-#include "mechanics/nodes/NodeEnum.h"
 #include "mechanics/nodes/NodeBase.h"
-#include "mechanics/groups/GroupEnum.h"
+#include "mechanics/MechanicsEnums.h"
 #include "visualize/VisualizeEnum.h"
 
 int main()
@@ -34,7 +31,7 @@ int main()
     structure.SectionSetArea(truss, area);
 
     // create material law
-    auto material = structure.ConstitutiveLawCreate("Heat_Conduction");
+    auto material = structure.ConstitutiveLawCreate(NuTo::Constitutive::eConstitutiveType::HEAT_CONDUCTION);
     structure.ConstitutiveLawSetParameterDouble(material,
             NuTo::Constitutive::eConstitutiveParameter::HEAT_CAPACITY, capacity);
     structure.ConstitutiveLawSetParameterDouble(material,
@@ -54,7 +51,7 @@ int main()
         NuTo::Interpolation::eTypeOrder::EQUIDISTANT1);
     structure.InterpolationTypeAdd(InterpolationType, NuTo::Node::eDof::TEMPERATURE,
         NuTo::Interpolation::eTypeOrder::EQUIDISTANT1);
-    structure.InterpolationTypeSetIntegrationType(InterpolationType, "1D2NGauss2Ip");
+    structure.InterpolationTypeSetIntegrationType(InterpolationType, NuTo::eIntegrationType::IntegrationType1D2NGauss2Ip);
 
     // create elements
     std::vector<int> elementIncidence(2);

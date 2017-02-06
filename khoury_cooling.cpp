@@ -82,8 +82,6 @@ void SetConstitutiveLaws(NuTo::Structure &structure, int group, Properties prope
     structure.ConstitutiveLawSetParameterDouble(damage_id,
             NuTo::Constitutive::eConstitutiveParameter::NONLOCAL_RADIUS, 1.3);
     structure.ConstitutiveLawSetParameterDouble(damage_id,
-            NuTo::Constitutive::eConstitutiveParameter::NONLOCAL_RADIUS_PARAMETER, 0.);
-    structure.ConstitutiveLawSetParameterDouble(damage_id,
             NuTo::Constitutive::eConstitutiveParameter::TENSILE_STRENGTH, 4.);
     structure.ConstitutiveLawSetParameterDouble(damage_id,
             NuTo::Constitutive::eConstitutiveParameter::COMPRESSIVE_STRENGTH, 4. * 10);

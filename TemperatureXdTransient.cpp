@@ -1,38 +1,37 @@
 #include "mechanics/structures/unstructured/Structure.h"
-#include "mechanics/tools/MeshGenerator.h"
+#include "mechanics/mesh/MeshGenerator.h"
 #include "mechanics/timeIntegration/NewmarkDirect.h"
-#include "mechanics/constitutive/ConstitutiveEnum.h"
-#include "mechanics/interpolationtypes/InterpolationTypeEnum.h"
-#include "mechanics/groups/GroupEnum.h"
-#include "mechanics/nodes/NodeEnum.h"
+#include "mechanics/MechanicsEnums.h"
 #include "visualize/VisualizeEnum.h"
 
-template<int TDim>
+using namespace NuTo;
+
+template <int TDim>
 double analytic_solution(std::vector<double> x, double t)
 {
     double alpha, beta, gamma;
-    if(TDim == 1)
+    if (TDim == 1)
     {
         alpha = 0.0;
         beta = 0.0;
         gamma = 2.0;
     }
-    if(TDim == 2)
+    if (TDim == 2)
     {
         alpha = 1.0;
         beta = 0.0;
         gamma = 4.0;
     }
-    if(TDim == 3)
+    if (TDim == 3)
     {
         alpha = 2.0;
         beta = -2.5;
         gamma = 1.0;
     }
-    return 1 + x[0]*x[0] + alpha*x[1]*x[1] + beta*x[2]*x[2] + gamma*t;
+    return 1 + x[0] * x[0] + alpha * x[1] * x[1] + beta * x[2] * x[2] + gamma * t;
 }
 
-void SetConstraints(NuTo::Structure &structure, NuTo::TimeIntegrationBase &newmark, double simulationTime)
+void SetConstraints(Structure& structure, TimeIntegrationBase& newmark, double simulationTime)
 {
     int constraint;
     double initial_temperature, end_temperature;
@@ -40,11 +39,11 @@ void SetConstraints(NuTo::Structure &structure, NuTo::TimeIntegrationBase &newma
     Eigen::Matrix<double, 2, 2> tempRHS;
     tempRHS(0, 0) = 0.0;
     tempRHS(1, 0) = simulationTime;
-    for(int node = 0; node < structure.GetNumNodes(); ++node)
+    for (int node = 0; node < structure.GetNumNodes(); ++node)
     {
         structure.NodeGetCoordinates(node, coordinates);
         // lower boundary
-        if((coordinates[0] == 0)||(coordinates[0] == 1.0)||(coordinates[1] == 0.0)||(coordinates[1] == 1.0))
+        if ((coordinates[0] == 0) || (coordinates[0] == 1.0) || (coordinates[1] == 0.0) || (coordinates[1] == 1.0))
         {
             initial_temperature = analytic_solution<2>({coordinates[0], coordinates[1], 0.0}, 0.0);
             end_temperature = analytic_solution<2>({coordinates[0], coordinates[1], 0.0}, simulationTime);
@@ -56,11 +55,11 @@ void SetConstraints(NuTo::Structure &structure, NuTo::TimeIntegrationBase &newma
     }
 }
 
-void SetInitialCondition(NuTo::Structure &structure)
+void SetInitialCondition(Structure& structure)
 {
     double temperature;
     Eigen::VectorXd coordinates(2);
-    for(int node = 0; node < structure.GetNumNodes(); ++node)
+    for (int node = 0; node < structure.GetNumNodes(); ++node)
     {
         structure.NodeGetCoordinates(node, coordinates);
         temperature = analytic_solution<2>({coordinates[0], coordinates[1], 0.0}, 0.0);
@@ -68,12 +67,12 @@ void SetInitialCondition(NuTo::Structure &structure)
     }
 }
 
-double CompareToAnalyticSolution(NuTo::Structure &structure, double simulationTime)
+double CompareToAnalyticSolution(Structure& structure, double simulationTime)
 {
     int numNodes = structure.GetNumNodes();
     Eigen::VectorXd fem_values(numNodes), exact_values(numNodes);
     Eigen::VectorXd coordinates(2);
-    for(int node = 0; node < numNodes; ++node)
+    for (int node = 0; node < numNodes; ++node)
     {
         structure.NodeGetCoordinates(node, coordinates);
         exact_values[node] = analytic_solution<2>({coordinates[0], coordinates[1], 0.0}, simulationTime);
@@ -95,45 +94,42 @@ int main()
     double capacity = 1.0;
     double density = 1.0;
 
-    NuTo::Structure structure(2);
+    Structure structure(2);
     structure.SetNumTimeDerivatives(1);
 
-	auto planeSection = structure.SectionCreate("Plane_Strain");
-	structure.SectionSetThickness(planeSection, thickness);
+    auto planeSection = structure.SectionCreate("Plane_Strain");
+    structure.SectionSetThickness(planeSection, thickness);
 
-    auto material = structure.ConstitutiveLawCreate("Heat_Conduction");
-    structure.ConstitutiveLawSetParameterDouble(material, 
-            NuTo::Constitutive::eConstitutiveParameter::THERMAL_CONDUCTIVITY, conductivity);
-    structure.ConstitutiveLawSetParameterDouble(material, 
-            NuTo::Constitutive::eConstitutiveParameter::HEAT_CAPACITY, capacity);
-    structure.ConstitutiveLawSetParameterDouble(material, 
-            NuTo::Constitutive::eConstitutiveParameter::DENSITY, density);
+    auto material = structure.ConstitutiveLawCreate(Constitutive::eConstitutiveType::HEAT_CONDUCTION);
+    structure.ConstitutiveLawSetParameterDouble(
+            material, Constitutive::eConstitutiveParameter::THERMAL_CONDUCTIVITY, conductivity);
+    structure.ConstitutiveLawSetParameterDouble(
+            material, Constitutive::eConstitutiveParameter::HEAT_CAPACITY, capacity);
+    structure.ConstitutiveLawSetParameterDouble(material, Constitutive::eConstitutiveParameter::DENSITY, density);
 
-    auto interpolationType = structure.InterpolationTypeCreate(
-            NuTo::Interpolation::eShapeType::QUAD2D);
-    structure.InterpolationTypeAdd(interpolationType, NuTo::Node::eDof::COORDINATES,
-            NuTo::Interpolation::eTypeOrder::EQUIDISTANT1);
-    structure.InterpolationTypeAdd(interpolationType, NuTo::Node::eDof::TEMPERATURE,
-            NuTo::Interpolation::eTypeOrder::EQUIDISTANT1);
-    structure.InterpolationTypeSetIntegrationType(interpolationType, "2D4NGauss9Ip");
+    std::array<int, 2> numElements{nElements, nElements};
+    std::array<double, 2> lengths{length, length};
+    int group, interpolationType;
+    std::tie(group, interpolationType) = MeshGenerator::Grid<2>(structure, lengths, numElements);
 
-    std::array<int, 2> numElements {nElements, nElements};
-    std::array<double, 2> lengths {length, length};
-    NuTo::MeshGenerator::MeshRectangularPlane(structure, planeSection,
-            material, interpolationType, numElements, lengths);
+    structure.ElementTotalSetSection(planeSection);
+    structure.ElementTotalSetConstitutiveLaw(material);
 
+    structure.InterpolationTypeAdd(interpolationType, Node::eDof::COORDINATES, Interpolation::eTypeOrder::EQUIDISTANT1);
+    structure.InterpolationTypeAdd(interpolationType, Node::eDof::TEMPERATURE, Interpolation::eTypeOrder::EQUIDISTANT1);
+    structure.InterpolationTypeSetIntegrationType(interpolationType, eIntegrationType::IntegrationType2D4NGauss9Ip);
     structure.ElementTotalConvertToInterpolationType();
 
-	//auto visualizationGroup = structure.GroupCreate(NuTo::eGroupId::Elements);
-    //structure.GroupAddElementsTotal(visualizationGroup);
-    //structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::TEMPERATURE);
+    // auto visualizationGroup = structure.GroupCreate(eGroupId::Elements);
+    // structure.GroupAddElementsTotal(visualizationGroup);
+    // structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::TEMPERATURE);
 
     SetInitialCondition(structure);
 
     bool deleteDirectory = true;
     double simulationTime = 1.0;
-	NuTo::NewmarkDirect newmark(&structure);
-    newmark.SetTimeStep(simulationTime/10.0);
+    NewmarkDirect newmark(&structure);
+    newmark.SetTimeStep(simulationTime / 10.0);
     newmark.SetAutomaticTimeStepping(true);
     newmark.SetToleranceForce(1e-6);
     newmark.AddResultTime("Time");

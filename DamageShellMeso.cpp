@@ -1,25 +1,17 @@
-#include <iostream>
-#include <cmath>
-#include "math/SparseMatrixCSRGeneral.h"
-#include "math/SparseDirectSolverMUMPS.h"
+#include "base/CallbackInterface.h"
 #include "math/LinearInterpolation.h"
 #include "mechanics/structures/unstructured/Structure.h"
+#include "mechanics/nodes/NodeDof.h"
+#include "mechanics/MechanicsEnums.h"
+#include "mechanics/structures/StructureOutputBlockMatrix.h"
 #include "mechanics/constitutive/laws/AdditiveInputExplicit.h"
 #include "mechanics/constitutive/laws/AdditiveOutput.h"
 #include "mechanics/constitutive/laws/ThermalStrains.h"
-#include "mechanics/timeIntegration/NewmarkDirect.h"
-#include "mechanics/elements/IpDataEnum.h"
-#include "mechanics/integrationtypes/IntegrationTypeEnum.h"
-#include "mechanics/interpolationtypes/InterpolationTypeEnum.h"
-#include "mechanics/groups/GroupEnum.h"
-#include "mechanics/nodes/NodeEnum.h"
 #include "visualize/VisualizeEnum.h"
 
+#include "mechanics/timeIntegration/NewmarkDirect.h"
 
-double iso_temperature_curve(double seconds)
-{
-    return 345.0*std::log10(8.0*seconds/60.0 + 1.0);
-}
+using namespace NuTo;
 
 std::array<double, 2> SandstoneExpansion(double temperature)
 {
@@ -49,6 +41,7 @@ std::array<double,2> CruzGillenCement(double temperature)
     return {interpolation(temperature), interpolation.derivative(temperature)};
 }
 
+
 void SetConstitutiveLawAggregate(NuTo::Structure &structure, int group,
         std::function<std::array<double, 2>(double)> ExpansionFunction)
 {
@@ -75,18 +68,15 @@ void SetConstitutiveLawAggregate(NuTo::Structure &structure, int group,
 
     int thermal_strains_id = structure.ConstitutiveLawCreate(
             NuTo::Constitutive::eConstitutiveType::THERMAL_STRAINS);
-    structure.ConstitutiveLawSetParameterDouble(thermal_strains_id,
-            NuTo::Constitutive::eConstitutiveParameter::THERMAL_EXPANSION_COEFFICIENT, 12.5e-6);
+    NuTo::ConstitutiveBase* thermal_strains = structure.ConstitutiveLawGetConstitutiveLawPtr(thermal_strains_id);
+    thermal_strains->SetParameterFunction(ExpansionFunction);
 
     NuTo::AdditiveInputExplicit* additive_input = 
         static_cast<NuTo::AdditiveInputExplicit*>(structure.ConstitutiveLawGetConstitutiveLawPtr(additive_input_id));
     NuTo::AdditiveOutput* additive_output = 
         static_cast<NuTo::AdditiveOutput*>(structure.ConstitutiveLawGetConstitutiveLawPtr(additive_output_id));
     NuTo::ConstitutiveBase* lin_elastic = structure.ConstitutiveLawGetConstitutiveLawPtr(lin_elastic_id);
-    NuTo::ConstitutiveBase* thermal_strains = structure.ConstitutiveLawGetConstitutiveLawPtr(thermal_strains_id);
     NuTo::ConstitutiveBase* heat_conduction = structure.ConstitutiveLawGetConstitutiveLawPtr(heat_conduction_id);
-
-    thermal_strains->SetParameterFunction(ExpansionFunction);
 
     additive_input->AddConstitutiveLaw(*lin_elastic);
     additive_input->AddConstitutiveLaw(*thermal_strains, NuTo::Constitutive::eInput::ENGINEERING_STRAIN);
@@ -119,13 +109,12 @@ void SetConstitutiveLawMatrix(NuTo::Structure &structure, int group,
             NuTo::Constitutive::eConstitutiveParameter::COMPRESSIVE_STRENGTH, 4. * 10);
     structure.ConstitutiveLawSetParameterDouble(damage_id,
             NuTo::Constitutive::eConstitutiveParameter::FRACTURE_ENERGY, 0.021);
-    //structure.ConstitutiveLawSetDamageLaw(damage_id,
-    //        NuTo::Constitutive::eDamageLawType::ISOTROPIC_EXPONENTIAL_SOFTENING);
 
     int heat_conduction_id = structure.ConstitutiveLawCreate(
             NuTo::Constitutive::eConstitutiveType::HEAT_CONDUCTION);
     structure.ConstitutiveLawSetParameterDouble(heat_conduction_id,
             NuTo::Constitutive::eConstitutiveParameter::HEAT_CAPACITY, 1000e-6);
+    // TODO: check value
     structure.ConstitutiveLawSetParameterDouble(heat_conduction_id,
             NuTo::Constitutive::eConstitutiveParameter::THERMAL_CONDUCTIVITY, 1.1);
     structure.ConstitutiveLawSetParameterDouble(heat_conduction_id,
@@ -133,18 +122,15 @@ void SetConstitutiveLawMatrix(NuTo::Structure &structure, int group,
 
     int thermal_strains_id = structure.ConstitutiveLawCreate(
             NuTo::Constitutive::eConstitutiveType::THERMAL_STRAINS);
-    structure.ConstitutiveLawSetParameterDouble(thermal_strains_id,
-            NuTo::Constitutive::eConstitutiveParameter::THERMAL_EXPANSION_COEFFICIENT, 20e-6);
+    NuTo::ConstitutiveBase* thermal_strains = structure.ConstitutiveLawGetConstitutiveLawPtr(thermal_strains_id);
+    thermal_strains->SetParameterFunction(ExpansionFunction);
 
     auto additive_input =
         static_cast<NuTo::AdditiveInputExplicit*>(structure.ConstitutiveLawGetConstitutiveLawPtr(additive_input_id));
     auto additive_output =
         static_cast<NuTo::AdditiveOutput*>(structure.ConstitutiveLawGetConstitutiveLawPtr(additive_output_id));
     NuTo::ConstitutiveBase* damage          = structure.ConstitutiveLawGetConstitutiveLawPtr(damage_id);
-    NuTo::ConstitutiveBase* thermal_strains = structure.ConstitutiveLawGetConstitutiveLawPtr(thermal_strains_id);
     NuTo::ConstitutiveBase* heat_conduction = structure.ConstitutiveLawGetConstitutiveLawPtr(heat_conduction_id);
-
-    thermal_strains->SetParameterFunction(ExpansionFunction);
 
     additive_input->AddConstitutiveLaw(*damage);
     additive_input->AddConstitutiveLaw(*thermal_strains, NuTo::Constitutive::eInput::ENGINEERING_STRAIN);
@@ -162,7 +148,7 @@ void SetInterpolationMatrix(NuTo::Structure& structure, int group)
     structure.InterpolationTypeAdd(group, NuTo::Node::eDof::TEMPERATURE,
             NuTo::Interpolation::eTypeOrder::EQUIDISTANT2);
     structure.InterpolationTypeAdd(group, NuTo::Node::eDof::NONLOCALEQSTRAIN,
-            NuTo::Interpolation::eTypeOrder::EQUIDISTANT2);
+            NuTo::Interpolation::eTypeOrder::EQUIDISTANT1);
     structure.InterpolationTypeSetIntegrationType(group, NuTo::eIntegrationType::IntegrationType2D3NGauss4Ip);
 }
 
@@ -197,47 +183,35 @@ void SetVisualizationAggregate(NuTo::Structure& structure, int group)
     structure.AddVisualizationComponent(group, NuTo::eVisualizeWhat::ENGINEERING_STRESS);
     structure.AddVisualizationComponent(group, NuTo::eVisualizeWhat::THERMAL_STRAIN);
 }
-
 int main()
 {
-    // create one-dimensional structure
-    NuTo::Structure structure(2);
+    Structure structure(2);
     structure.SetNumTimeDerivatives(1);
 
-    // import mesh
-    //auto groupIndices = structure.ImportFromGmsh("./Temperature2DMeso.msh");
-    //auto groupIndices = structure.ImportFromGmsh("./TwoElements.msh",
-    //        "ConstitutiveLawIp", "StaticData");
-    //auto groupIndices = structure.ImportFromGmsh("./Temperature2DHomogeneous.msh",
-    //        "ConstitutiveLawIp", "StaticDataNonLocal");
-    auto groupIndices = structure.ImportFromGmsh("/home/cpohl/Code/Cpp/nuto/myNutoExamples/OneStone.msh");
-    //        "ConstitutiveLawIp", "StaticDataNonLocal");
-
-    // create section
-    double thickness = 20.0;
-    auto section = structure.SectionCreate("Plane_Strain");
-    structure.SectionSetThickness(section, thickness);
-    structure.ElementTotalSetSection(section);
+    std::string filename = "Temperature2DMeso";
+    auto groupIndices = structure.ImportFromGmsh(filename + ".msh");
 
     auto matrix_group = groupIndices[0].first;
     auto aggregate_group = groupIndices[1].first;
 
     SetConstitutiveLawMatrix(structure, matrix_group, CruzGillenCement);
-
     SetConstitutiveLawAggregate(structure, aggregate_group, SandstoneExpansion);
 
-    // set interpolation types
     auto interpolationMatrix = groupIndices[0].second;
     auto interpolationAggreg = groupIndices[1].second;
 
     SetInterpolationMatrix(structure, interpolationMatrix);
     SetInterpolationAggregates(structure, interpolationAggreg);
 
+    double thickness = 20.0;
+    auto section = structure.SectionCreate("Plane_Strain");
+    structure.SectionSetThickness(section, thickness);
+    structure.ElementTotalSetSection(section);
+
     structure.ElementTotalConvertToInterpolationType();
 
     SetVisualizationMatrix(structure, matrix_group);
     SetVisualizationAggregate(structure, aggregate_group);
-
     // set boundary conditions and loads
     auto nodesWest = structure.GroupCreate("Nodes");
     auto nodesEast = structure.GroupCreate("Nodes");
@@ -255,24 +229,23 @@ int main()
 
     // temperature BC
     structure.SetNumLoadCases(1);
-    //structure.ConstraintLinearSetTemperatureNode(0, 50.0);
     structure.ConstraintLinearSetTemperatureNodeGroup(nodesWest, 0.0);
     auto east_bc = structure.ConstraintLinearSetTemperatureNodeGroup(nodesEast, 0.0);
 
-    // solve system
     NuTo::NewmarkDirect newmark(&structure);
     double simulationTime = 3600.0;
-    newmark.AddTimeDependentConstraintFunction(east_bc, iso_temperature_curve);
-    newmark.SetPerformLineSearch(false);
-    newmark.SetTimeStep(45);
-    newmark.SetMaxTimeStep(0.2*simulationTime);
-    newmark.SetToleranceResidual(NuTo::Node::eDof::TEMPERATURE, 1e-4);
-    newmark.SetToleranceResidual(NuTo::Node::eDof::DISPLACEMENTS, 1e-3);
-    newmark.SetToleranceResidual(NuTo::Node::eDof::NONLOCALEQSTRAIN, 1e-3);
-    newmark.SetAutomaticTimeStepping(true);
+    double temperature = 800.0;
+    Eigen::Matrix<double, 2, 2> temperatureEvolution;
+    temperatureEvolution << 0.0, 0.0, simulationTime, temperature;
+    newmark.AddTimeDependentConstraint(east_bc, temperatureEvolution);
 
-    bool deleteDirectory = true;
-    newmark.SetResultDirectory("results_coupled_meso", deleteDirectory);
+    newmark.SetTimeStep(simulationTime/200.0);
+    //newmark.SetMaxTimeStep(simulationTime);
+    //newmark.SetMinTimeStep(simulationTime/100.0);
+    //newmark.SetAutomaticTimeStepping(true);
+    newmark.SetAutomaticTimeStepping(false);
+    newmark.SetResultDirectory("DamageShellResults" + filename + "Nonlinear", true);
+    newmark.SetToleranceResidual(Node::eDof::TEMPERATURE, 1e-4);
     newmark.Solve(simulationTime);
 
     return 0;

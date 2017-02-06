@@ -4,7 +4,7 @@ Mesh.Smoothing = 2;
 
 xS = 0; xE = 100;
 yS = 0; yE = 20;
-meshSpecimen = 2;
+meshSpecimen = 40;
 // defines a box-shaped specimen 
 // by start coordinates <xyz>S 
 // and end coordinates  <xyz>E 
