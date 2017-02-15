@@ -116,7 +116,7 @@ int main(int ac, char* av[])
 
     NuTo::Structure structure(3);
     structure.SetNumProcessors(4);
-    structure.SetNumTimeDerivatives(2);
+    structure.SetNumTimeDerivatives(1);
 
     // import mesh
     auto groupIndices = structure.ImportFromGmsh(filename);
@@ -150,23 +150,34 @@ int main(int ac, char* av[])
     structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitX(), 0.0);
     structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitY(), 0.0);
     structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitZ(), 0.0);
+    std::cout << structure.GroupGetNumMembers(nodesBottom) << std::endl;
+    std::cout << structure.GroupGetNumMembers(nodesTop) << std::endl;
 
     structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, Eigen::Vector3d::UnitX(), 0.0);
     structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, Eigen::Vector3d::UnitY(), 0.0);
+    auto topBC = structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, Eigen::Vector3d::UnitZ(), 0.0);
 
     // set load
-    structure.SetNumLoadCases(1);
-    structure.LoadSurfacePressureCreate3D(0, elementsTop, nodesTop, 10.0);
+    //structure.LoadSurfacePressureCreate3D(0, elementsTop, nodesTop, 10.0);
+    double simulationTime = 6000.0;
+
+    Eigen::Matrix<double, 2, 2> timeDepenentBC;
+    timeDepenentBC << 0.0, 0.0, simulationTime, -3.0;
 
     // solve system
     NuTo::NewmarkDirect newmark(&structure);
-    double simulationTime = 6000.0;
-    newmark.SetPerformLineSearch(false);
-    newmark.SetTimeStep(0.2 * simulationTime);
+    newmark.AddTimeDependentConstraint(topBC, timeDepenentBC);
+    newmark.SetPerformLineSearch(true);
+    newmark.SetTimeStep(0.05 * simulationTime);
     newmark.SetToleranceResidual(NuTo::Node::eDof::TEMPERATURE, 1e-4);
     newmark.SetToleranceResidual(NuTo::Node::eDof::DISPLACEMENTS, 1e-3);
     newmark.SetToleranceResidual(NuTo::Node::eDof::NONLOCALEQSTRAIN, 1e-3);
     newmark.SetAutomaticTimeStepping(true);
+    newmark.SetMinTimeStep(1.0);
+    newmark.SetMaxTimeStep(1000);
+
+    newmark.AddResultGroupNodeForce("TopForce", nodesTop);
+    newmark.AddResultNodeDisplacements("TopDisplacement", structure.GroupGetMemberIds(nodesTop)[0]);
 
     bool deleteDirectory = true;
     boost::filesystem::path p;

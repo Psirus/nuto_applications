@@ -8,6 +8,8 @@
 #include "mechanics/MechanicsEnums.h"
 #include "visualize/VisualizeEnum.h"
 
+using namespace NuTo;
+
 int SetConstitutiveLaws(NuTo::Structure &structure)
 {
     int additive_input_id = structure.ConstitutiveLawCreate(
@@ -70,11 +72,11 @@ int main()
 
     auto additive_output = SetConstitutiveLaws(structure);
 
-    std::array<int, 1> numElements {10};
-    std::array<double, 1> length {10.0};
-
+    std::vector<int> numElements{10};
+    std::vector<double> lengths{10.0};
     int group, interpolationType;
-    std::tie(group, interpolationType) = NuTo::MeshGenerator::Grid<1>(structure, length, numElements);
+    std::tie(group, interpolationType) = MeshGenerator::Grid(structure, lengths, numElements, NuTo::Interpolation::eShapeType::TRUSS1D);
+
     structure.InterpolationTypeAdd(interpolationType, NuTo::Node::eDof::COORDINATES,
             NuTo::Interpolation::eTypeOrder::EQUIDISTANT1);
     structure.InterpolationTypeAdd(interpolationType, NuTo::Node::eDof::DISPLACEMENTS,

@@ -241,49 +241,40 @@ int main(int ac, char* av[])
     auto elementsTop = structure.GroupCreate(NuTo::eGroupId::Elements);
     structure.GroupAddElementsFromNodes(elementsTop, nodesTop, true);
 
-
     structure.GroupAddNodeFunction(nodesSide, node_is_on_side);
 
     // displacement BC
-    Eigen::Vector3d coordinates_right = {radius, 0.0, 0.0};
-    Eigen::Vector3d coordinates_left = {0.0, radius, 0.0};
-   // for (auto coordinate : std::vector<NuTo::FullVector<double, Eigen::Dynamic>>({coordinates_left, coordinates_right}))
-   // {
-   //     auto node_id = structure.NodeGetIdAtCoordinate(coordinate, 1e-6);
-   //     NuTo::NodeBase* node = structure.NodeGetNodePtr(node_id);
-   //     structure.ConstraintLinearSetDisplacementNode(node, NuTo::FullVector<double, 3>::UnitX(), 0.0);
-   //     structure.ConstraintLinearSetDisplacementNode(node, NuTo::FullVector<double, 3>::UnitY(), 0.0);
-   // }
-
     structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitX(), 0.0);
     structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitY(), 0.0);
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitZ(), 1.0);
+    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitZ(), 0.0);
 
     structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, Eigen::Vector3d::UnitX(), 0.0);
     structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, Eigen::Vector3d::UnitY(), 0.0);
-
+    auto topBC = structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, Eigen::Vector3d::UnitZ(), 0.0);
 
     // temperature BC
-    structure.SetNumLoadCases(1);
     auto side_bc = structure.ConstraintLinearSetTemperatureNodeGroup(nodesSide, 0.0);
-    //structure.LoadSurfacePressureCreate3D(0, elementsTop, nodesTop, 10.0);
+    double simulationTime = 2.0*reversal_point;
 
     // solve system
     NuTo::NewmarkDirect newmark(&structure);
-    double simulationTime = 2.0*reversal_point;
     newmark.AddTimeDependentConstraintFunction(side_bc, linear_heating_and_cooling);
-    newmark.SetPerformLineSearch(false);
-    newmark.SetTimeStep(0.2*reversal_point);
+    newmark.SetPerformLineSearch(true);
+    newmark.SetTimeStep(0.05*reversal_point);
     newmark.SetToleranceResidual(NuTo::Node::eDof::TEMPERATURE, 1e-4);
-    newmark.SetToleranceResidual(NuTo::Node::eDof::DISPLACEMENTS, 1e-3);
-    newmark.SetToleranceResidual(NuTo::Node::eDof::NONLOCALEQSTRAIN, 1e-3);
+    newmark.SetToleranceResidual(NuTo::Node::eDof::DISPLACEMENTS, 1e-6);
+    newmark.SetToleranceResidual(NuTo::Node::eDof::NONLOCALEQSTRAIN, 1e-9);
     newmark.SetAutomaticTimeStepping(true);
-    //newmark.ConnectCallback
+    newmark.SetMinTimeStep(1.0);
+    newmark.SetMaxTimeStep(reversal_point/10.0);
+
+    newmark.AddResultGroupNodeForce("TopForce", nodesTop);
+    newmark.AddResultNodeDisplacements("TopDisplacement", structure.GroupGetMemberIds(nodesTop)[0]);
 
     bool deleteDirectory = true;
     boost::filesystem::path p;
     p = filename;
-    newmark.SetResultDirectory(p.stem().c_str(), deleteDirectory);
+    newmark.SetResultDirectory(p.stem().string() + "cooling", deleteDirectory);
     newmark.Solve(simulationTime);
 
     return 0;

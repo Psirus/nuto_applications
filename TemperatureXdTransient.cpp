@@ -107,10 +107,10 @@ int main()
             material, Constitutive::eConstitutiveParameter::HEAT_CAPACITY, capacity);
     structure.ConstitutiveLawSetParameterDouble(material, Constitutive::eConstitutiveParameter::DENSITY, density);
 
-    std::array<int, 2> numElements{nElements, nElements};
-    std::array<double, 2> lengths{length, length};
+    std::vector<int> numElements{nElements, nElements};
+    std::vector<double> lengths{length, length};
     int group, interpolationType;
-    std::tie(group, interpolationType) = MeshGenerator::Grid<2>(structure, lengths, numElements);
+    std::tie(group, interpolationType) = MeshGenerator::Grid(structure, lengths, numElements, NuTo::Interpolation::eShapeType::QUAD2D);
 
     structure.ElementTotalSetSection(planeSection);
     structure.ElementTotalSetConstitutiveLaw(material);
