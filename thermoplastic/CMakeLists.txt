@@ -1,5 +1,5 @@
 add_custom_application(DamageShell)
 add_custom_application(DamageShellMeso)
 add_custom_application(DamageShellNonlinear)
-add_custom_application(damage_bar)
+add_custom_application(DamageTruss)
 add_custom_application(khoury_cooling)
