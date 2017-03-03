@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from IPython import embed
 import nuto
 import numpy as np
@@ -18,7 +19,7 @@ plane_section = structure.SectionCreate("Plane_Strain")
 structure.SectionSetThickness(plane_section, thickness)
 
 # load mesh
-groupIndices = structure.ImportFromGmsh("./Temperature2DMeso.msh")
+groupIndices = structure.ImportFromGmsh("../meshes/2D/ShellMeso.msh")
 
 matrix_group = groupIndices[0][0]
 aggregate_group = groupIndices[1][0]

@@ -102,7 +102,6 @@ int main()
     structure.ElementTotalSetConstitutiveLaw(material);
 
     structure.InterpolationTypeAdd(interpolationType, Node::eDof::TEMPERATURE, Interpolation::eTypeOrder::EQUIDISTANT1);
-    structure.InterpolationTypeAdd(interpolationType, Node::eDof::COORDINATES, Interpolation::eTypeOrder::EQUIDISTANT1);
     structure.InterpolationTypeSetIntegrationType(interpolationType, eIntegrationType::IntegrationType2D4NGauss9Ip);
 
     structure.ElementTotalConvertToInterpolationType();
