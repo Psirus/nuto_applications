@@ -188,8 +188,8 @@ int main()
     Structure structure(2);
     structure.SetNumTimeDerivatives(1);
 
-    std::string filename = "Temperature2DMeso";
-    auto groupIndices = structure.ImportFromGmsh(filename + ".msh");
+    std::string filename = "ShellMeso";
+    auto groupIndices = structure.ImportFromGmsh("../meshes/2D/" + filename + ".msh");
 
     auto matrix_group = groupIndices[0].first;
     auto aggregate_group = groupIndices[1].first;

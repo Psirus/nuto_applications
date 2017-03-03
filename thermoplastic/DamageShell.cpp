@@ -13,34 +13,6 @@
 
 using namespace NuTo;
 
-std::array<double, 2> SandstoneExpansion(double temperature)
-{
-    static std::vector<std::array<double, 2>> values = {{{0.0, 0.0},
-                                                   {200.0, 0.25e-2},
-                                                   {400.0, 0.6e-2},
-                                                   {600.0, 1.3e-2},
-                                                   {800.0, 1.5e-2},
-                                                  {1600.0, 1.5e-2}}};
-    static auto interpolation = NuTo::Math::LinearInterpolation(values);
-    return {interpolation(temperature), interpolation.derivative(temperature)};
-}
-
-std::array<double,2> CruzGillenCement(double temperature)
-{
-    static std::vector<std::array<double, 2>> values = {{{0.0, 0.0},
-                                                   {100.0, 0.2e-2},
-                                                   {200.0, 0.2e-2},
-                                                   {300.0, -0.2e-2},
-                                                   {400.0, -0.6e-2},
-                                                   {500.0, -1.1e-2},
-                                                   {600.0, -1.5e-2},
-                                                   {700.0, -1.7e-2},
-                                                   {800.0, -1.8e-2},
-                                                  {1600.0, -1.8e-2}}};
-    static auto interpolation = NuTo::Math::LinearInterpolation(values);
-    return {interpolation(temperature), interpolation.derivative(temperature)};
-}
-
 void SetConstitutiveLawConcrete(NuTo::Structure& structure) 
 {
     int additive_input_id = structure.ConstitutiveLawCreate(
@@ -83,7 +55,6 @@ void SetConstitutiveLawConcrete(NuTo::Structure& structure)
         static_cast<NuTo::AdditiveOutput*>(structure.ConstitutiveLawGetConstitutiveLawPtr(additive_output_id));
     NuTo::ConstitutiveBase* damage          = structure.ConstitutiveLawGetConstitutiveLawPtr(damage_id);
     NuTo::ConstitutiveBase* thermal_strains = structure.ConstitutiveLawGetConstitutiveLawPtr(thermal_strains_id);
-    thermal_strains->SetParameterFunction(SandstoneExpansion);
     NuTo::ConstitutiveBase* heat_conduction = structure.ConstitutiveLawGetConstitutiveLawPtr(heat_conduction_id);
 
     additive_input->AddConstitutiveLaw(*damage);
@@ -101,9 +72,9 @@ int main()
     Structure structure(2);
     structure.SetNumTimeDerivatives(2);
 
-    //std::string filename = "Coarse2D";
-    std::string filename = "Temperature2DHomogeneous";
-    auto groupIndices = structure.ImportFromGmsh(filename + ".msh");
+    //std::string filename = "ShellCoarse";
+    std::string filename = "ShellFine";
+    auto groupIndices = structure.ImportFromGmsh("../meshes/2D/" + filename + ".msh");
 
     auto interpolationType = groupIndices[0].second;
     structure.InterpolationTypeAdd(
@@ -133,7 +104,7 @@ int main()
     structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::NONLOCAL_EQ_STRAIN);
     structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::DAMAGE);
     structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::TEMPERATURE);
-    //structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::HEAT_FLUX);
+    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::HEAT_FLUX);
 
     // set boundary conditions and loads
     auto nodesWest = structure.GroupCreate("Nodes");
@@ -156,7 +127,7 @@ int main()
     auto east_bc = structure.ConstraintLinearSetTemperatureNodeGroup(nodesEast, 0.0);
 
     NuTo::NewmarkDirect newmark(&structure);
-    double simulationTime = 3600.0;
+    double simulationTime = 360.0;
     double temperature = 800.0;
     Eigen::Matrix<double, 2, 2> temperatureEvolution;
     temperatureEvolution << 0.0, 0.0, simulationTime, temperature;
@@ -165,7 +136,7 @@ int main()
     newmark.SetTimeStep(simulationTime/10.0);
     newmark.SetMaxTimeStep(simulationTime);
     newmark.SetMinTimeStep(simulationTime/100.0);
-    newmark.SetResultDirectory("DamageShellResults" + filename + "Nonlinear", true);
+    newmark.SetResultDirectory("DamageShellResults" + filename, true);
     newmark.SetToleranceResidual(Node::eDof::TEMPERATURE, 1e-4);
     newmark.SetAutomaticTimeStepping(true);
     newmark.Solve(simulationTime);

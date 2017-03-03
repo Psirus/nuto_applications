@@ -2,26 +2,23 @@ if(ENABLE_MECHANICS)
     execute_process(COMMAND "${CMAKE_COMMAND}" "-E" "create_symlink"
         "${CMAKE_CURRENT_SOURCE_DIR}/meshes" "${CMAKE_CURRENT_BINARY_DIR}/meshes")
 
-    foreach(test 
-            DamageShell
-            DamageShellNonlinear
-            DamageShellMeso
-            khoury_cooling
-            khoury_damage
-            TrussHeatCoupledRestrained
-            TemperatureXdTransient
-            hancock1
-            damage_bar
-            )
+    function(add_custom_application source)
+        set(parameters ${ARGN})
 
-        add_executable(${test} ${test}.cpp)
-        target_link_libraries(${test} NuToMechanics NuToMath NuToBase -lboost_program_options -lprofiler ${Boost_LIBRARIES} ${LAPACK_LIBRARIES} ${ANN_LIBRARIES})
+        add_executable(${source} ${source}.cpp)
+        target_link_libraries(${source} NuToMechanics NuToMath NuToBase
+            -lboost_program_options -lprofiler ${Boost_LIBRARIES}
+            ${LAPACK_LIBRARIES} ${ANN_LIBRARIES} ${MUMPS_LIBRARIES})
         if(ENABLE_VISUALIZE)
-            target_link_libraries(${test} NuToVisualize)
-        endif()
-        if(MUMPS_FOUND)
-            target_link_libraries(${test} ${MUMPS_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+            target_link_libraries(${source} NuToVisualize)
         endif()
 
-    endforeach()
+        add_test(custom::${source} ${source} ${parameters})
+    endfunction()
+
+    add_subdirectory(damage)
+    add_subdirectory(heatconduction)
+    add_subdirectory(thermoelastic)
+    add_subdirectory(thermoplastic)
+
 endif()

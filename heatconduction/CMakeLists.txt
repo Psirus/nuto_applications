@@ -1,0 +1,2 @@
+add_custom_application(hancock1)
+add_custom_application(TemperatureXdTransient)
