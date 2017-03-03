@@ -162,7 +162,7 @@ void SetInterpolationMatrix(NuTo::Structure& structure, int group)
     structure.InterpolationTypeAdd(group, NuTo::Node::eDof::TEMPERATURE,
             NuTo::Interpolation::eTypeOrder::EQUIDISTANT2);
     structure.InterpolationTypeAdd(group, NuTo::Node::eDof::NONLOCALEQSTRAIN,
-            NuTo::Interpolation::eTypeOrder::EQUIDISTANT2);
+            NuTo::Interpolation::eTypeOrder::EQUIDISTANT1);
     structure.InterpolationTypeSetIntegrationType(group, NuTo::eIntegrationType::IntegrationType2D3NGauss4Ip);
 }
 
@@ -205,12 +205,12 @@ int main()
     structure.SetNumTimeDerivatives(1);
 
     // import mesh
-    //auto groupIndices = structure.ImportFromGmsh("./Temperature2DMeso.msh");
+    auto groupIndices = structure.ImportFromGmsh("./Temperature2DMeso.msh");
     //auto groupIndices = structure.ImportFromGmsh("./TwoElements.msh",
     //        "ConstitutiveLawIp", "StaticData");
     //auto groupIndices = structure.ImportFromGmsh("./Temperature2DHomogeneous.msh",
     //        "ConstitutiveLawIp", "StaticDataNonLocal");
-    auto groupIndices = structure.ImportFromGmsh("/home/cpohl/Code/Cpp/nuto/myNutoExamples/OneStone.msh");
+    //auto groupIndices = structure.ImportFromGmsh("./OneStone.msh");
     //        "ConstitutiveLawIp", "StaticDataNonLocal");
 
     // create section

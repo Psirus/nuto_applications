@@ -131,7 +131,7 @@ void SetInterpolation(NuTo::Structure& structure, int group)
             NuTo::Interpolation::eTypeOrder::EQUIDISTANT2);
     structure.InterpolationTypeAdd(group, NuTo::Node::eDof::NONLOCALEQSTRAIN,
             NuTo::Interpolation::eTypeOrder::EQUIDISTANT1);
-    structure.InterpolationTypeSetIntegrationType(group, NuTo::eIntegrationType::IntegrationType3D4NGauss4Ip);
+    structure.InterpolationTypeSetIntegrationType(group, NuTo::eIntegrationType::IntegrationType3D8NGauss2x2x2Ip);
 }
 
 void SetVisualization(NuTo::Structure& structure)
@@ -244,13 +244,28 @@ int main(int ac, char* av[])
     structure.GroupAddNodeFunction(nodesSide, node_is_on_side);
 
     // displacement BC
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitX(), 0.0);
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitY(), 0.0);
+    // structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitX(), 0.0);
+    // structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitY(), 0.0);
     structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitZ(), 0.0);
 
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, Eigen::Vector3d::UnitX(), 0.0);
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, Eigen::Vector3d::UnitY(), 0.0);
-    auto topBC = structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, Eigen::Vector3d::UnitZ(), 0.0);
+    auto nodeZero = structure.NodeGetIdAtCoordinate(Eigen::Vector3d({-radius, 0.0, 0.0}), 1e-8);
+    structure.ConstraintLinearSetDisplacementNode(nodeZero, Eigen::Vector3d::UnitY(), 0.0);
+
+    auto nodeOneId = structure.NodeGetIdAtCoordinate(Eigen::Vector3d({radius, 0.0, 0.0}), 1e-8);
+    auto nodeOne = structure.NodeGetNodePtr(nodeOneId);
+    structure.ConstraintLinearSetDisplacementNode(nodeOne, Eigen::Vector3d::UnitY(), 0.0);
+
+    auto nodeTwoId = structure.NodeGetIdAtCoordinate(Eigen::Vector3d({0.0, radius, 0.0}), 1e-8);
+    auto nodeTwo = structure.NodeGetNodePtr(nodeTwoId);
+    structure.ConstraintLinearSetDisplacementNode(nodeTwo, Eigen::Vector3d::UnitX(), 0.0);
+
+    auto nodeThreeId = structure.NodeGetIdAtCoordinate(Eigen::Vector3d({0.0, -radius, 0.0}), 1e-8);
+    auto nodeThree = structure.NodeGetNodePtr(nodeThreeId);
+    structure.ConstraintLinearSetDisplacementNode(nodeThree, Eigen::Vector3d::UnitX(), 0.0);
+
+    // structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, Eigen::Vector3d::UnitX(), 0.0);
+    // structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, Eigen::Vector3d::UnitY(), 0.0);
+    // auto topBC = structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, Eigen::Vector3d::UnitZ(), 0.0);
 
     // temperature BC
     auto side_bc = structure.ConstraintLinearSetTemperatureNodeGroup(nodesSide, 0.0);
