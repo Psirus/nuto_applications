@@ -18,7 +18,6 @@ if(ENABLE_MECHANICS)
 
     add_subdirectory(damage)
     add_subdirectory(heatconduction)
-    add_subdirectory(thermoelastic)
     add_subdirectory(thermoplastic)
 
 endif()
