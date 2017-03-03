@@ -1,30 +1,15 @@
 if(ENABLE_MECHANICS)
-    foreach(meshfile
-            Temperature2DMeso.msh
-            Temperature2DHomogeneous.msh
-            OneStone.msh
-            TwoElements.msh
-            cylinder.msh
-            cylinder.geo
-            Coarse2D.msh
-            )
-
-        configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${meshfile} ${CMAKE_CURRENT_BINARY_DIR}/${meshfile} COPYONLY)
-    endforeach()
+    execute_process(COMMAND "${CMAKE_COMMAND}" "-E" "create_symlink"
+        "${CMAKE_CURRENT_SOURCE_DIR}/meshes" "${CMAKE_CURRENT_BINARY_DIR}/meshes")
 
     foreach(test 
-            SlabTransient
-            Coupled2DMesoTransient
-            Coupled2DDamageTransient
             DamageShell
             DamageShellNonlinear
             DamageShellMeso
             khoury_cooling
             khoury_damage
-            TrussHeatCoupled
             TrussHeatCoupledRestrained
             TemperatureXdTransient
-            ThermoDamage
             hancock1
             damage_bar
             )
