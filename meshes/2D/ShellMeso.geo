@@ -1,6 +1,8 @@
 Mesh.Algorithm = 6;
 Mesh.Optimize = 1;
 Mesh.Smoothing = 2;
+Mesh.ElementOrder = 2;
+
 Function MySphere 
   meshCircleR = meshCircle; 
   p1 = newp; Point(p1) = {xC,  yC,  0,  meshCircleR} ; 

@@ -1,5 +1,7 @@
 Mesh.Algorithm3D = 2;
 Mesh.Optimize = 4;
+Mesh.ElementOrder = 2;
+
 coarseness = 20.0;
 r = 31.0;
 h = 186.0;
