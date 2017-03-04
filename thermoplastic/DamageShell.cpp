@@ -1,3 +1,6 @@
+#include <boost/program_options.hpp>
+#include <boost/filesystem.hpp>
+
 #include "base/CallbackInterface.h"
 #include "math/LinearInterpolation.h"
 #include "mechanics/structures/unstructured/Structure.h"
@@ -13,7 +16,35 @@
 
 using namespace NuTo;
 
-void SetConstitutiveLawConcrete(NuTo::Structure& structure) 
+std::array<double, 2> SandstoneExpansion(double temperature)
+{
+    static std::vector<std::array<double, 2>> values = {{{0.0, 0.0},
+                                                   {200.0, 0.25e-2},
+                                                   {400.0, 0.6e-2},
+                                                   {600.0, 1.3e-2},
+                                                   {800.0, 1.5e-2},
+                                                  {1600.0, 1.5e-2}}};
+    static auto interpolation = NuTo::Math::LinearInterpolation(values);
+    return {interpolation(temperature), interpolation.derivative(temperature)};
+}
+
+std::array<double,2> CruzGillenCement(double temperature)
+{
+    static std::vector<std::array<double, 2>> values = {{{0.0, 0.0},
+                                                   {100.0, 0.2e-2},
+                                                   {200.0, 0.2e-2},
+                                                   {300.0, -0.2e-2},
+                                                   {400.0, -0.6e-2},
+                                                   {500.0, -1.1e-2},
+                                                   {600.0, -1.5e-2},
+                                                   {700.0, -1.7e-2},
+                                                   {800.0, -1.8e-2},
+                                                  {1600.0, -1.8e-2}}};
+    static auto interpolation = NuTo::Math::LinearInterpolation(values);
+    return {interpolation(temperature), interpolation.derivative(temperature)};
+}
+
+void SetConstitutiveLawConcrete(NuTo::Structure& structure, bool nonlinear) 
 {
     int additive_input_id = structure.ConstitutiveLawCreate(
             NuTo::Constitutive::eConstitutiveType::ADDITIVE_INPUT_EXPLICIT);
@@ -46,8 +77,6 @@ void SetConstitutiveLawConcrete(NuTo::Structure& structure)
 
     int thermal_strains_id = structure.ConstitutiveLawCreate(
             NuTo::Constitutive::eConstitutiveType::THERMAL_STRAINS);
-    structure.ConstitutiveLawSetParameterDouble(thermal_strains_id,
-            NuTo::Constitutive::eConstitutiveParameter::THERMAL_EXPANSION_COEFFICIENT, 20e-6);
 
     auto additive_input =
         static_cast<NuTo::AdditiveInputExplicit*>(structure.ConstitutiveLawGetConstitutiveLawPtr(additive_input_id));
@@ -56,6 +85,12 @@ void SetConstitutiveLawConcrete(NuTo::Structure& structure)
     NuTo::ConstitutiveBase* damage          = structure.ConstitutiveLawGetConstitutiveLawPtr(damage_id);
     NuTo::ConstitutiveBase* thermal_strains = structure.ConstitutiveLawGetConstitutiveLawPtr(thermal_strains_id);
     NuTo::ConstitutiveBase* heat_conduction = structure.ConstitutiveLawGetConstitutiveLawPtr(heat_conduction_id);
+
+    if (nonlinear)
+        thermal_strains->SetParameterFunction(SandstoneExpansion);
+    else
+        structure.ConstitutiveLawSetParameterDouble(thermal_strains_id,
+                NuTo::Constitutive::eConstitutiveParameter::THERMAL_EXPANSION_COEFFICIENT, 20e-6);
 
     additive_input->AddConstitutiveLaw(*damage);
     additive_input->AddConstitutiveLaw(*thermal_strains, NuTo::Constitutive::eInput::ENGINEERING_STRAIN);
@@ -66,15 +101,51 @@ void SetConstitutiveLawConcrete(NuTo::Structure& structure)
     structure.ElementTotalSetConstitutiveLaw(additive_output_id);
 }
 
-
-int main()
+std::pair<std::string, bool> DeclareCLI(int ac, char* av[])
 {
+    namespace po = boost::program_options;
+    po::options_description desc("Shell under rapid heating with damage; needs a mesh file.\n"
+                                 "Call like this: ./DamageShell mesh.msh\n"
+                                 "Options");
+    desc.add_options()("help", "show this message");
+    desc.add_options()("nonlinear", "use nonlinear expansion coefficient");
+
+    po::options_description hidden("Hidden options");
+    hidden.add_options()("mesh-file", po::value<std::vector<std::string>>(), "mesh file to use");
+
+    po::positional_options_description pos;
+    pos.add("mesh-file", -1);
+
+    po::options_description cmdline_options;
+    cmdline_options.add(desc).add(hidden);
+
+    po::variables_map vm;        
+    po::store(po::command_line_parser(ac, av).options(cmdline_options).positional(pos).run(), vm);
+    po::notify(vm);
+
+    if (vm.count("help") or !vm.count("mesh-file"))
+    {
+        std::cout << desc << "\n";
+        std::exit(0);
+    }
+
+    bool nonlinear = false;
+    if (vm.count("nonlinear"))
+        nonlinear = true;
+
+    return {vm["mesh-file"].as<std::vector<std::string>>()[0], nonlinear};
+}
+
+int main(int ac, char* av[])
+{
+    std::string filename;
+    bool nonlinear;
+    std::tie(filename, nonlinear) = DeclareCLI(ac, av);
+
     Structure structure(2);
     structure.SetNumTimeDerivatives(2);
 
-    //std::string filename = "ShellCoarse";
-    std::string filename = "ShellFine";
-    auto groupIndices = structure.ImportFromGmsh("../meshes/2D/" + filename + ".msh");
+    auto groupIndices = structure.ImportFromGmsh(filename);
 
     auto interpolationType = groupIndices[0].second;
     structure.InterpolationTypeAdd(
@@ -91,7 +162,7 @@ int main()
 
     structure.ElementTotalConvertToInterpolationType();
 
-    SetConstitutiveLawConcrete(structure);
+    SetConstitutiveLawConcrete(structure, nonlinear);
 
     int visualizationGroup = structure.GroupCreate(NuTo::eGroupId::Elements);
     structure.GroupAddElementsTotal(visualizationGroup);
@@ -127,7 +198,7 @@ int main()
     auto east_bc = structure.ConstraintLinearSetTemperatureNodeGroup(nodesEast, 0.0);
 
     NuTo::NewmarkDirect newmark(&structure);
-    double simulationTime = 360.0;
+    double simulationTime = 3600.0;
     double temperature = 800.0;
     Eigen::Matrix<double, 2, 2> temperatureEvolution;
     temperatureEvolution << 0.0, 0.0, simulationTime, temperature;
@@ -136,9 +207,14 @@ int main()
     newmark.SetTimeStep(simulationTime/10.0);
     newmark.SetMaxTimeStep(simulationTime);
     newmark.SetMinTimeStep(simulationTime/100.0);
-    newmark.SetResultDirectory("DamageShellResults" + filename, true);
     newmark.SetToleranceResidual(Node::eDof::TEMPERATURE, 1e-4);
     newmark.SetAutomaticTimeStepping(true);
+
+    boost::filesystem::path p = filename;
+    std::string resultDir = "DamageShellResults" + p.stem().string();
+    if (nonlinear) resultDir += "Nonlinear";
+    newmark.SetResultDirectory(resultDir, true);
+
     newmark.Solve(simulationTime);
 
     return 0;
