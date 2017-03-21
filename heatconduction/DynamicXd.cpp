@@ -1,3 +1,4 @@
+#include "mechanics/sections/SectionPlane.h"
 #include "mechanics/structures/unstructured/Structure.h"
 #include "mechanics/mesh/MeshGenerator.h"
 #include "mechanics/timeIntegration/NewmarkDirect.h"
@@ -101,8 +102,7 @@ int main()
     Structure structure(2);
     structure.SetNumTimeDerivatives(1);
 
-    auto planeSection = structure.SectionCreate("Plane_Strain");
-    structure.SectionSetThickness(planeSection, thickness);
+    auto planeSection = SectionPlane::Create(thickness, true);
 
     auto material = structure.ConstitutiveLawCreate(Constitutive::eConstitutiveType::HEAT_CONDUCTION);
     structure.ConstitutiveLawSetParameterDouble(material, Constitutive::eConstitutiveParameter::THERMAL_CONDUCTIVITY,

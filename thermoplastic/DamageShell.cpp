@@ -3,6 +3,7 @@
 
 #include "base/CallbackInterface.h"
 #include "math/LinearInterpolation.h"
+#include "mechanics/sections/SectionPlane.h"
 #include "mechanics/structures/unstructured/Structure.h"
 #include "mechanics/nodes/NodeDof.h"
 #include "mechanics/MechanicsEnums.h"
@@ -156,8 +157,7 @@ int main(int ac, char* av[])
             interpolationType, Node::eDof::TEMPERATURE, Interpolation::eTypeOrder::EQUIDISTANT2);
 
     double thickness = 20.0;
-    auto section = structure.SectionCreate("Plane_Strain");
-    structure.SectionSetThickness(section, thickness);
+    auto section = SectionPlane::Create(thickness, true);
     structure.ElementTotalSetSection(section);
 
     structure.ElementTotalConvertToInterpolationType();
@@ -167,7 +167,6 @@ int main(int ac, char* av[])
     int visualizationGroup = structure.GroupCreate(NuTo::eGroupId::Elements);
     structure.GroupAddElementsTotal(visualizationGroup);
 
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::CONSTITUTIVE);
     structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::DISPLACEMENTS);
     structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::ENGINEERING_STRAIN);
     structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::ENGINEERING_STRESS);

@@ -62,7 +62,6 @@ void SetVisualization(NuTo::Structure& structure)
     int visualizationGroup = structure.GroupCreate(NuTo::eGroupId::Elements);
     structure.GroupAddElementsTotal(visualizationGroup);
 
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::CONSTITUTIVE);
     structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::DISPLACEMENTS);
     structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::ENGINEERING_STRAIN);
     structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::ENGINEERING_STRESS);
@@ -120,10 +119,6 @@ int main(int ac, char* av[])
 
     // import mesh
     auto groupIndices = structure.ImportFromGmsh(filename);
-
-    // create section
-    auto section = structure.SectionCreate("Volume");
-    structure.ElementTotalSetSection(section);
 
     auto matrix_group = groupIndices[0].first;
 

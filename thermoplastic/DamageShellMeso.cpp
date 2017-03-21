@@ -3,6 +3,7 @@
 #include "mechanics/structures/unstructured/Structure.h"
 #include "mechanics/nodes/NodeDof.h"
 #include "mechanics/MechanicsEnums.h"
+#include "mechanics/sections/SectionPlane.h"
 #include "mechanics/structures/StructureOutputBlockMatrix.h"
 #include "mechanics/constitutive/laws/AdditiveInputExplicit.h"
 #include "mechanics/constitutive/laws/AdditiveOutput.h"
@@ -163,7 +164,6 @@ void SetInterpolationAggregates(NuTo::Structure& structure, int group)
 
 void SetVisualizationMatrix(NuTo::Structure& structure, int group)
 {
-    structure.AddVisualizationComponent(group, NuTo::eVisualizeWhat::CONSTITUTIVE);
     structure.AddVisualizationComponent(group, NuTo::eVisualizeWhat::DISPLACEMENTS);
     structure.AddVisualizationComponent(group, NuTo::eVisualizeWhat::TEMPERATURE);
     structure.AddVisualizationComponent(group, NuTo::eVisualizeWhat::ENGINEERING_STRAIN);
@@ -176,7 +176,6 @@ void SetVisualizationMatrix(NuTo::Structure& structure, int group)
 
 void SetVisualizationAggregate(NuTo::Structure& structure, int group)
 {
-    structure.AddVisualizationComponent(group, NuTo::eVisualizeWhat::CONSTITUTIVE);
     structure.AddVisualizationComponent(group, NuTo::eVisualizeWhat::DISPLACEMENTS);
     structure.AddVisualizationComponent(group, NuTo::eVisualizeWhat::TEMPERATURE);
     structure.AddVisualizationComponent(group, NuTo::eVisualizeWhat::ENGINEERING_STRAIN);
@@ -204,8 +203,7 @@ int main()
     SetInterpolationAggregates(structure, interpolationAggreg);
 
     double thickness = 20.0;
-    auto section = structure.SectionCreate("Plane_Strain");
-    structure.SectionSetThickness(section, thickness);
+    auto section = SectionPlane::Create(thickness, true);
     structure.ElementTotalSetSection(section);
 
     structure.ElementTotalConvertToInterpolationType();

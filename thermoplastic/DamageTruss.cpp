@@ -1,5 +1,6 @@
 #include "base/CallbackInterface.h"
 #include "math/LinearInterpolation.h"
+#include "mechanics/sections/SectionTruss.h"
 #include "mechanics/structures/unstructured/Structure.h"
 #include "mechanics/nodes/NodeDof.h"
 #include "mechanics/MechanicsEnums.h"
@@ -13,49 +14,46 @@
 
 using namespace NuTo;
 
-void SetConstitutiveLawConcrete(NuTo::Structure &structure) 
+void SetConstitutiveLawConcrete(NuTo::Structure& structure)
 {
-    int additive_input_id = structure.ConstitutiveLawCreate(
-            NuTo::Constitutive::eConstitutiveType::ADDITIVE_INPUT_EXPLICIT);
-    int additive_output_id = structure.ConstitutiveLawCreate(
-            NuTo::Constitutive::eConstitutiveType::ADDITIVE_OUTPUT);
+    int additive_input_id =
+            structure.ConstitutiveLawCreate(NuTo::Constitutive::eConstitutiveType::ADDITIVE_INPUT_EXPLICIT);
+    int additive_output_id = structure.ConstitutiveLawCreate(NuTo::Constitutive::eConstitutiveType::ADDITIVE_OUTPUT);
 
-    int damage_id = structure.ConstitutiveLawCreate(
-            NuTo::Constitutive::eConstitutiveType::GRADIENT_DAMAGE_ENGINEERING_STRESS);
-    structure.ConstitutiveLawSetParameterDouble(damage_id,
-            NuTo::Constitutive::eConstitutiveParameter::YOUNGS_MODULUS, 25e3);
-    structure.ConstitutiveLawSetParameterDouble(damage_id,
-            NuTo::Constitutive::eConstitutiveParameter::POISSONS_RATIO, .2);
-    structure.ConstitutiveLawSetParameterDouble(damage_id,
-            NuTo::Constitutive::eConstitutiveParameter::NONLOCAL_RADIUS, 1.3);
-    structure.ConstitutiveLawSetParameterDouble(damage_id,
-            NuTo::Constitutive::eConstitutiveParameter::TENSILE_STRENGTH, 4.);
-    structure.ConstitutiveLawSetParameterDouble(damage_id,
-            NuTo::Constitutive::eConstitutiveParameter::COMPRESSIVE_STRENGTH, 4. * 10);
-    structure.ConstitutiveLawSetParameterDouble(damage_id,
-            NuTo::Constitutive::eConstitutiveParameter::FRACTURE_ENERGY, 0.021);
-    //structure.ConstitutiveLawSetDamageLaw(damage_id,
+    int damage_id =
+            structure.ConstitutiveLawCreate(NuTo::Constitutive::eConstitutiveType::GRADIENT_DAMAGE_ENGINEERING_STRESS);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, NuTo::Constitutive::eConstitutiveParameter::YOUNGS_MODULUS,
+                                                25e3);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, NuTo::Constitutive::eConstitutiveParameter::POISSONS_RATIO,
+                                                .2);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, NuTo::Constitutive::eConstitutiveParameter::NONLOCAL_RADIUS,
+                                                1.3);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, NuTo::Constitutive::eConstitutiveParameter::TENSILE_STRENGTH,
+                                                4.);
+    structure.ConstitutiveLawSetParameterDouble(
+            damage_id, NuTo::Constitutive::eConstitutiveParameter::COMPRESSIVE_STRENGTH, 4. * 10);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, NuTo::Constitutive::eConstitutiveParameter::FRACTURE_ENERGY,
+                                                0.021);
+    // structure.ConstitutiveLawSetDamageLaw(damage_id,
     //        NuTo::Constitutive::eDamageLawType::ISOTROPIC_EXPONENTIAL_SOFTENING);
 
-    int heat_conduction_id = structure.ConstitutiveLawCreate(
-            NuTo::Constitutive::eConstitutiveType::HEAT_CONDUCTION);
+    int heat_conduction_id = structure.ConstitutiveLawCreate(NuTo::Constitutive::eConstitutiveType::HEAT_CONDUCTION);
     structure.ConstitutiveLawSetParameterDouble(heat_conduction_id,
-            NuTo::Constitutive::eConstitutiveParameter::HEAT_CAPACITY, 1000e-6);
-    structure.ConstitutiveLawSetParameterDouble(heat_conduction_id,
-            NuTo::Constitutive::eConstitutiveParameter::THERMAL_CONDUCTIVITY, 1.1e6);
-    structure.ConstitutiveLawSetParameterDouble(heat_conduction_id,
-            NuTo::Constitutive::eConstitutiveParameter::DENSITY, 3120.0);
+                                                NuTo::Constitutive::eConstitutiveParameter::HEAT_CAPACITY, 1000e-6);
+    structure.ConstitutiveLawSetParameterDouble(
+            heat_conduction_id, NuTo::Constitutive::eConstitutiveParameter::THERMAL_CONDUCTIVITY, 1.1e6);
+    structure.ConstitutiveLawSetParameterDouble(heat_conduction_id, NuTo::Constitutive::eConstitutiveParameter::DENSITY,
+                                                3120.0);
 
-    int thermal_strains_id = structure.ConstitutiveLawCreate(
-            NuTo::Constitutive::eConstitutiveType::THERMAL_STRAINS);
-    structure.ConstitutiveLawSetParameterDouble(thermal_strains_id,
-            NuTo::Constitutive::eConstitutiveParameter::THERMAL_EXPANSION_COEFFICIENT, 20e-6);
+    int thermal_strains_id = structure.ConstitutiveLawCreate(NuTo::Constitutive::eConstitutiveType::THERMAL_STRAINS);
+    structure.ConstitutiveLawSetParameterDouble(
+            thermal_strains_id, NuTo::Constitutive::eConstitutiveParameter::THERMAL_EXPANSION_COEFFICIENT, 20e-6);
 
-    auto additive_input =
-        static_cast<NuTo::AdditiveInputExplicit*>(structure.ConstitutiveLawGetConstitutiveLawPtr(additive_input_id));
+    auto additive_input = static_cast<NuTo::AdditiveInputExplicit*>(
+            structure.ConstitutiveLawGetConstitutiveLawPtr(additive_input_id));
     auto additive_output =
-        static_cast<NuTo::AdditiveOutput*>(structure.ConstitutiveLawGetConstitutiveLawPtr(additive_output_id));
-    NuTo::ConstitutiveBase* damage          = structure.ConstitutiveLawGetConstitutiveLawPtr(damage_id);
+            static_cast<NuTo::AdditiveOutput*>(structure.ConstitutiveLawGetConstitutiveLawPtr(additive_output_id));
+    NuTo::ConstitutiveBase* damage = structure.ConstitutiveLawGetConstitutiveLawPtr(damage_id);
     NuTo::ConstitutiveBase* thermal_strains = structure.ConstitutiveLawGetConstitutiveLawPtr(thermal_strains_id);
     NuTo::ConstitutiveBase* heat_conduction = structure.ConstitutiveLawGetConstitutiveLawPtr(heat_conduction_id);
 
@@ -71,11 +69,14 @@ void SetConstitutiveLawConcrete(NuTo::Structure &structure)
 class SaveStresses : public CallbackInterface
 {
 public:
-    SaveStresses(int lastNode) : mLastNode(lastNode) {}
+    SaveStresses(int lastNode)
+        : mLastNode(lastNode)
+    {
+    }
 
     bool Exit(StructureBase& structure)
     {
-        auto stress = structure.ElementGetEngineeringStress(0); 
+        auto stress = structure.ElementGetEngineeringStress(0);
         double stress_xx = stress(0, 0);
         mStresses.push_back(stress_xx);
 
@@ -108,12 +109,11 @@ int main()
 
     auto interpolationType = structure.InterpolationTypeCreate(Interpolation::eShapeType::TRUSS1D);
     structure.InterpolationTypeAdd(interpolationType, Node::eDof::COORDINATES, Interpolation::eTypeOrder::EQUIDISTANT1);
-    structure.InterpolationTypeAdd(
-            interpolationType, Node::eDof::DISPLACEMENTS, Interpolation::eTypeOrder::EQUIDISTANT2);
-    structure.InterpolationTypeAdd(
-            interpolationType, Node::eDof::NONLOCALEQSTRAIN, Interpolation::eTypeOrder::EQUIDISTANT1);
-    structure.InterpolationTypeAdd(
-            interpolationType, Node::eDof::TEMPERATURE, Interpolation::eTypeOrder::EQUIDISTANT1);
+    structure.InterpolationTypeAdd(interpolationType, Node::eDof::DISPLACEMENTS,
+                                   Interpolation::eTypeOrder::EQUIDISTANT2);
+    structure.InterpolationTypeAdd(interpolationType, Node::eDof::NONLOCALEQSTRAIN,
+                                   Interpolation::eTypeOrder::EQUIDISTANT1);
+    structure.InterpolationTypeAdd(interpolationType, Node::eDof::TEMPERATURE, Interpolation::eTypeOrder::EQUIDISTANT1);
 
     Eigen::Matrix<double, 1, 1> coordinates;
     coordinates.setZero();
@@ -126,10 +126,8 @@ int main()
     const int n_elements = 100;
     const double delta_l = length / n_elements;
 
-    auto totalSection = structure.SectionCreate(NuTo::eSectionType::TRUSS);
-    structure.SectionSetArea(totalSection, area);
-    auto weakenedSection = structure.SectionCreate(NuTo::eSectionType::TRUSS);
-    structure.SectionSetArea(weakenedSection, (1.0 - alpha) * area);
+    auto totalSection = SectionTruss::Create(area);
+    auto weakenedSection = SectionTruss::Create((1.0 - alpha) * area);
 
     std::vector<int> nodeIDs(2);
     nodeIDs[0] = structure.NodeCreate(coordinates);
@@ -139,7 +137,7 @@ int main()
         nodeIDs[1] = structure.NodeCreate(coordinates);
         auto element = structure.ElementCreate(interpolationType, nodeIDs);
         if (coordinates[0] < (length - weakened_zone_length) / 2.0 or
-                coordinates[0] > (length + weakened_zone_length) / 2.0)
+            coordinates[0] > (length + weakened_zone_length) / 2.0)
             structure.ElementSetSection(element, totalSection);
         else
             structure.ElementSetSection(element, weakenedSection);
@@ -153,7 +151,6 @@ int main()
     int visualizationGroup = structure.GroupCreate(NuTo::eGroupId::Elements);
     structure.GroupAddElementsTotal(visualizationGroup);
 
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::CONSTITUTIVE);
     structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::DISPLACEMENTS);
     structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::ENGINEERING_STRAIN);
     structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::ENGINEERING_STRESS);

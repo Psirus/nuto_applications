@@ -1,6 +1,7 @@
 #include <cmath>
 #include "math/SparseMatrixCSRGeneral.h"
 #include "math/SparseDirectSolverMUMPS.h"
+#include "mechanics/sections/SectionPlane.h"
 #include "mechanics/structures/unstructured/Structure.h"
 #include "mechanics/timeIntegration/NewmarkDirect.h"
 #include "mechanics/mesh/MeshGenerator.h"
@@ -83,8 +84,7 @@ int main()
     structure.SetNumTimeDerivatives(1);
 
     // create section
-    auto planeSection = structure.SectionCreate("Plane_Strain");
-    structure.SectionSetThickness(planeSection, thickness);
+    auto planeSection = SectionPlane::Create(thickness, true);
 
     auto material = structure.ConstitutiveLawCreate(Constitutive::eConstitutiveType::HEAT_CONDUCTION);
     structure.ConstitutiveLawSetParameterDouble(
