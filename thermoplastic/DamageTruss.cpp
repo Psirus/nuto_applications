@@ -74,7 +74,7 @@ public:
     {
     }
 
-    bool Exit(StructureBase& structure)
+    bool Exit(StructureBase& structure) override
     {
         auto stress = structure.ElementGetEngineeringStress(0);
         double stress_xx = stress(0, 0);
