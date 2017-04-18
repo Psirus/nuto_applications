@@ -3,3 +3,5 @@ add_test(custom::DamageShellNonlinear DamageShell --nonlinear ../meshes/2D/Shell
 add_custom_application(DamageShellMeso)
 add_custom_application(DamageTruss)
 add_custom_application(khoury_cooling)
+add_custom_application(oneElement)
+configure_file(khoury_loads.py ${CMAKE_CURRENT_BINARY_DIR}/khoury_loads.py COPYONLY)

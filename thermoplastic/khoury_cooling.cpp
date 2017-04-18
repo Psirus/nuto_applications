@@ -6,16 +6,21 @@
 #include "math/SparseDirectSolverMUMPS.h"
 #include "math/LinearInterpolation.h"
 #include "mechanics/MechanicsEnums.h"
+#include "mechanics/groups/Group.h"
 #include "mechanics/structures/unstructured/Structure.h"
+#include "mechanics/constitutive/damageLaws/DamageLawExponential.h"
 #include "mechanics/constitutive/laws/AdditiveInputExplicit.h"
 #include "mechanics/constitutive/laws/AdditiveOutput.h"
 #include "mechanics/constitutive/laws/ThermalStrains.h"
+#include "mechanics/constraints/ConstraintCompanion.h"
 #include "mechanics/nodes/NodeBase.h"
 #include "mechanics/timeIntegration/NewmarkDirect.h"
 #include "visualize/VisualizeEnum.h"
 
+using namespace NuTo;
+
 const double radius = 31.0;
-const double height = 186.0/2.0; // symmetry, only model half
+const double height = 186.0; // symmetry, only model half
 const double heating_rate = 1.0; // 1K/min
 const double max_temperature = 600.0; // K
 const double reversal_point = 60.0 * max_temperature / heating_rate;
@@ -33,17 +38,21 @@ const double wait = 0.05 * reversal_point;
 
 double linear_heating_and_cooling(double seconds)
 {
-    if (seconds < reversal_point)
+    if (seconds < wait)
+        return 0.0;
+    else if (seconds < (reversal_point + wait))
         return (seconds - wait) * heating_rate / 60.0;
-    else
+    else if (seconds < (2 * reversal_point + wait))
         return max_temperature - (seconds - wait - reversal_point) * heating_rate / 60.0;
+    else
+        return 0.0;
 }
 
 std::array<double, 2> SandstoneExpansion(double temperature)
 {
     static std::vector<std::array<double, 2>> values = {
             {{0.0, 0.0}, {200.0, 0.25e-2}, {400.0, 0.6e-2}, {600.0, 1.3e-2}, {800.0, 1.5e-2}, {1600.0, 1.5e-2}}};
-    static auto interpolation = NuTo::Math::LinearInterpolation(values);
+    static auto interpolation = Math::LinearInterpolation(values);
     return {interpolation(temperature), interpolation.derivative(temperature)};
 }
 
@@ -59,60 +68,50 @@ std::array<double, 2> CruzGillenCement(double temperature)
                                                          {700.0, -1.7e-2},
                                                          {800.0, -1.8e-2},
                                                          {1600.0, -1.8e-2}}};
-    static auto interpolation = NuTo::Math::LinearInterpolation(values);
+    static auto interpolation = Math::LinearInterpolation(values);
     return {interpolation(temperature), interpolation.derivative(temperature)};
 }
 
-void SetConstitutiveLaws(NuTo::Structure& structure, int group, Properties properties,
+void SetConstitutiveLaws(Structure& structure, int group, Properties properties,
                          std::function<std::array<double, 2>(double)> ExpansionFunction)
 {
-    int additive_input_id =
-            structure.ConstitutiveLawCreate(NuTo::Constitutive::eConstitutiveType::ADDITIVE_INPUT_EXPLICIT);
-    int additive_output_id = structure.ConstitutiveLawCreate(NuTo::Constitutive::eConstitutiveType::ADDITIVE_OUTPUT);
+    using namespace Constitutive;
+    int additive_input_id = structure.ConstitutiveLawCreate(eConstitutiveType::ADDITIVE_INPUT_EXPLICIT);
+    int additive_output_id = structure.ConstitutiveLawCreate(eConstitutiveType::ADDITIVE_OUTPUT);
 
-    int damage_id =
-            structure.ConstitutiveLawCreate(NuTo::Constitutive::eConstitutiveType::GRADIENT_DAMAGE_ENGINEERING_STRESS);
-    structure.ConstitutiveLawSetParameterDouble(damage_id, NuTo::Constitutive::eConstitutiveParameter::YOUNGS_MODULUS,
-                                                25e3);
-    structure.ConstitutiveLawSetParameterDouble(damage_id, NuTo::Constitutive::eConstitutiveParameter::POISSONS_RATIO,
-                                                .2);
-    structure.ConstitutiveLawSetParameterDouble(damage_id, NuTo::Constitutive::eConstitutiveParameter::NONLOCAL_RADIUS,
-                                                1.3);
-    structure.ConstitutiveLawSetParameterDouble(damage_id, NuTo::Constitutive::eConstitutiveParameter::TENSILE_STRENGTH,
-                                                4.);
-    structure.ConstitutiveLawSetParameterDouble(
-            damage_id, NuTo::Constitutive::eConstitutiveParameter::COMPRESSIVE_STRENGTH, 4. * 10);
-    structure.ConstitutiveLawSetParameterDouble(damage_id, NuTo::Constitutive::eConstitutiveParameter::FRACTURE_ENERGY,
-                                                0.021);
-    structure.ConstitutiveLawSetParameterDouble(damage_id, NuTo::Constitutive::eConstitutiveParameter::DENSITY,
-                                                properties.density);
+    int damage_id = structure.ConstitutiveLawCreate(eConstitutiveType::GRADIENT_DAMAGE_ENGINEERING_STRESS);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::YOUNGS_MODULUS, 25e3);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::POISSONS_RATIO, .2);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::NONLOCAL_RADIUS, 1.3);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::TENSILE_STRENGTH, 4.);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::COMPRESSIVE_STRENGTH, 4. * 10);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::DENSITY, properties.density);
+    structure.ConstitutiveLawSetDamageLaw(damage_id, DamageLawExponential::Create(4.0 / 25e3, 4.0 / 0.021));
 
-    int heat_conduction_id = structure.ConstitutiveLawCreate(NuTo::Constitutive::eConstitutiveType::HEAT_CONDUCTION);
-    structure.ConstitutiveLawSetParameterDouble(
-            heat_conduction_id, NuTo::Constitutive::eConstitutiveParameter::HEAT_CAPACITY, properties.capacity);
-    structure.ConstitutiveLawSetParameterDouble(heat_conduction_id,
-                                                NuTo::Constitutive::eConstitutiveParameter::THERMAL_CONDUCTIVITY,
+    int heat_conduction_id = structure.ConstitutiveLawCreate(eConstitutiveType::HEAT_CONDUCTION);
+    structure.ConstitutiveLawSetParameterDouble(heat_conduction_id, eConstitutiveParameter::HEAT_CAPACITY,
+                                                properties.capacity);
+    structure.ConstitutiveLawSetParameterDouble(heat_conduction_id, eConstitutiveParameter::THERMAL_CONDUCTIVITY,
                                                 properties.conductivity);
-    structure.ConstitutiveLawSetParameterDouble(heat_conduction_id, NuTo::Constitutive::eConstitutiveParameter::DENSITY,
+    structure.ConstitutiveLawSetParameterDouble(heat_conduction_id, eConstitutiveParameter::DENSITY,
                                                 properties.density);
 
-    int thermal_strains_id = structure.ConstitutiveLawCreate(NuTo::Constitutive::eConstitutiveType::THERMAL_STRAINS);
+    int thermal_strains_id = structure.ConstitutiveLawCreate(eConstitutiveType::THERMAL_STRAINS);
     structure.ConstitutiveLawSetParameterDouble(
-            thermal_strains_id, NuTo::Constitutive::eConstitutiveParameter::THERMAL_EXPANSION_COEFFICIENT,
-            properties.expansionCoeff);
+            thermal_strains_id, eConstitutiveParameter::THERMAL_EXPANSION_COEFFICIENT, properties.expansionCoeff);
 
-    auto additive_input = static_cast<NuTo::AdditiveInputExplicit*>(
-            structure.ConstitutiveLawGetConstitutiveLawPtr(additive_input_id));
+    auto additive_input =
+            static_cast<AdditiveInputExplicit*>(structure.ConstitutiveLawGetConstitutiveLawPtr(additive_input_id));
     auto additive_output =
-            static_cast<NuTo::AdditiveOutput*>(structure.ConstitutiveLawGetConstitutiveLawPtr(additive_output_id));
-    NuTo::ConstitutiveBase* damage = structure.ConstitutiveLawGetConstitutiveLawPtr(damage_id);
-    NuTo::ConstitutiveBase* thermal_strains = structure.ConstitutiveLawGetConstitutiveLawPtr(thermal_strains_id);
-    NuTo::ConstitutiveBase* heat_conduction = structure.ConstitutiveLawGetConstitutiveLawPtr(heat_conduction_id);
+            static_cast<AdditiveOutput*>(structure.ConstitutiveLawGetConstitutiveLawPtr(additive_output_id));
+    ConstitutiveBase* damage = structure.ConstitutiveLawGetConstitutiveLawPtr(damage_id);
+    ConstitutiveBase* thermal_strains = structure.ConstitutiveLawGetConstitutiveLawPtr(thermal_strains_id);
+    ConstitutiveBase* heat_conduction = structure.ConstitutiveLawGetConstitutiveLawPtr(heat_conduction_id);
 
     thermal_strains->SetParameterFunction(ExpansionFunction);
 
     additive_input->AddConstitutiveLaw(*damage);
-    additive_input->AddConstitutiveLaw(*thermal_strains, NuTo::Constitutive::eInput::ENGINEERING_STRAIN);
+    additive_input->AddConstitutiveLaw(*thermal_strains, eInput::ENGINEERING_STRAIN);
 
     additive_output->AddConstitutiveLaw(*additive_input);
     additive_output->AddConstitutiveLaw(*heat_conduction);
@@ -120,53 +119,53 @@ void SetConstitutiveLaws(NuTo::Structure& structure, int group, Properties prope
     structure.ElementGroupSetConstitutiveLaw(group, additive_output_id);
 }
 
-void SetInterpolation(NuTo::Structure& structure, int group)
+void SetInterpolation(Structure& structure, int group)
 {
-    structure.InterpolationTypeAdd(group, NuTo::Node::eDof::DISPLACEMENTS,
-                                   NuTo::Interpolation::eTypeOrder::EQUIDISTANT2);
-    structure.InterpolationTypeAdd(group, NuTo::Node::eDof::TEMPERATURE, NuTo::Interpolation::eTypeOrder::EQUIDISTANT2);
-    structure.InterpolationTypeAdd(group, NuTo::Node::eDof::NONLOCALEQSTRAIN,
-                                   NuTo::Interpolation::eTypeOrder::EQUIDISTANT1);
+    structure.InterpolationTypeAdd(group, Node::eDof::DISPLACEMENTS, Interpolation::eTypeOrder::EQUIDISTANT2);
+    structure.InterpolationTypeAdd(group, Node::eDof::TEMPERATURE, Interpolation::eTypeOrder::EQUIDISTANT2);
+    structure.InterpolationTypeAdd(group, Node::eDof::NONLOCALEQSTRAIN, Interpolation::eTypeOrder::EQUIDISTANT1);
 }
 
-void SetVisualization(NuTo::Structure& structure)
+void SetVisualization(Structure& structure)
 {
-    int visualizationGroup = structure.GroupCreate(NuTo::eGroupId::Elements);
+    int visualizationGroup = structure.GroupCreate(eGroupId::Elements);
     structure.GroupAddElementsTotal(visualizationGroup);
 
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::DISPLACEMENTS);
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::TEMPERATURE);
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::ENGINEERING_STRAIN);
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::ENGINEERING_STRESS);
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::THERMAL_STRAIN);
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::PRINCIPAL_ENGINEERING_STRESS);
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::NONLOCAL_EQ_STRAIN);
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::DAMAGE);
+    structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::DISPLACEMENTS);
+    structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::TEMPERATURE);
+    structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::ENGINEERING_STRAIN);
+    structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::ENGINEERING_STRESS);
+    structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::THERMAL_STRAIN);
+    structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::PRINCIPAL_ENGINEERING_STRESS);
+    structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::NONLOCAL_EQ_STRAIN);
+    structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::DAMAGE);
 }
 
 
-bool node_is_on_side(NuTo::NodeBase* node)
+bool node_is_on_side(NodeBase* node)
 {
-    auto coordinates = node->Get(NuTo::Node::eDof::COORDINATES, 0);
+    auto coordinates = node->Get(Node::eDof::COORDINATES, 0);
     auto r = std::sqrt(coordinates[0] * coordinates[0] + coordinates[1] * coordinates[1]);
     if (std::abs(radius - r) < 1e-6)
         return true;
     return false;
 }
 
-std::string DeclareCLI(int ac, char* av[])
+std::pair<std::string, double> DeclareCLI(int ac, char* av[])
 {
     namespace po = boost::program_options;
-    po::options_description desc("Khoury cooling experiment; needs a mesh file.\n"
-                                 "Call like this: ./khoury_cooling mesh.msh\n"
+    po::options_description desc("Khoury cooling experiment; needs a mesh file and a load.\n"
+                                 "Call like this: ./khoury_cooling mesh.msh 4.0\n"
                                  "Options");
     desc.add_options()("help", "show this message");
 
     po::options_description hidden("Hidden options");
-    hidden.add_options()("mesh-file", po::value<std::vector<std::string>>(), "mesh file to use");
+    hidden.add_options()("mesh-file", po::value<std::string>(), "mesh file to use");
+    hidden.add_options()("load-value", po::value<double>(), "value of preloading in MPa at the top");
 
     po::positional_options_description pos;
-    pos.add("mesh-file", -1);
+    pos.add("mesh-file", 1);
+    pos.add("load-value", 2);
 
     po::options_description cmdline_options;
     cmdline_options.add(desc).add(hidden);
@@ -181,14 +180,16 @@ std::string DeclareCLI(int ac, char* av[])
         std::exit(0);
     }
 
-    return vm["mesh-file"].as<std::vector<std::string>>()[0];
+    return std::make_pair(vm["mesh-file"].as<std::string>(), vm["load-value"].as<double>());
 }
 
 int main(int ac, char* av[])
 {
-    auto filename = DeclareCLI(ac, av);
+    std::string filename;
+    double loadValue;
+    std::tie(filename, loadValue) = DeclareCLI(ac, av);
 
-    NuTo::Structure structure(3);
+    Structure structure(3);
     structure.SetNumProcessors(4);
     structure.SetNumTimeDerivatives(2);
 
@@ -222,82 +223,68 @@ int main(int ac, char* av[])
     SetVisualization(structure);
 
     // set boundary conditions and loads
-    auto nodesBottom = structure.GroupCreate(NuTo::eGroupId::Nodes);
-    auto nodesTop = structure.GroupCreate(NuTo::eGroupId::Nodes);
-    auto nodesSide = structure.GroupCreate(NuTo::eGroupId::Nodes);
-    structure.GroupAddNodeCoordinateRange(nodesBottom, 2, -1e-6, 1e-6);
-    std::cout << structure.GroupGetNumMembers(nodesBottom) << std::endl;
-    structure.GroupAddNodeCoordinateRange(nodesTop, 2, height-1e-6, height+1e-6);
+    auto nodesTop = structure.GroupCreate(eGroupId::Nodes);
+    auto nodesBottom = structure.GroupGetNodeCoordinateRange(eDirection::Z, -1e-6, 1e-6);
+    std::cout << nodesBottom.GetNumMembers() << std::endl;
+    structure.GroupAddNodeCoordinateRange(nodesTop, 2, height - 1e-6, height + 1e-6);
 
-    auto elementsTop = structure.GroupCreate(NuTo::eGroupId::Elements);
+    auto elementsTop = structure.GroupCreate(eGroupId::Elements);
     structure.GroupAddElementsFromNodes(elementsTop, nodesTop, false);
 
-    structure.GroupAddNodeFunction(nodesSide, node_is_on_side);
 
     // displacement BC
-    // structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitX(), 0.0);
-    // structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitY(), 0.0);
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitZ(), 0.0);
+    structure.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(nodesBottom, {eDirection::Z}));
 
-    // auto nodeZero = structure.NodeGetIdAtCoordinate(Eigen::Vector3d({-radius, 0.0, 0.0}), 1e-8);
-    // structure.ConstraintLinearSetDisplacementNode(nodeZero, Eigen::Vector3d::UnitY(), 0.0);
-    auto nodeZero = structure.NodeGetIdAtCoordinate(Eigen::Vector3d({0.0, 0.0, 0.0}), 1e-5);
-    structure.ConstraintLinearSetDisplacementNode(nodeZero, Eigen::Vector3d::UnitX(), 0.0);
-    structure.ConstraintLinearSetDisplacementNode(nodeZero, Eigen::Vector3d::UnitY(), 0.0);
+    auto& nodeZero = structure.NodeGetAtCoordinate(Eigen::Vector3d({0.0, 0.0, 0.0}), 1e-5);
+    structure.Constraints().Add(Node::eDof::DISPLACEMENTS,
+                                Constraint::Component(nodeZero, {eDirection::X, eDirection::Y}));
 
-    auto nodeOneId = structure.NodeGetIdAtCoordinate(Eigen::Vector3d({radius, 0.0, 0.0}), 1e-8);
-    auto nodeOne = structure.NodeGetNodePtr(nodeOneId);
-    structure.ConstraintLinearSetDisplacementNode(nodeOne, Eigen::Vector3d::UnitY(), 0.0);
+    auto& nodeOne = structure.NodeGetAtCoordinate(Eigen::Vector3d({radius, 0.0, 0.0}), 1e-8);
+    structure.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(nodeOne, {eDirection::Y}));
 
-    // auto nodeTwoId = structure.NodeGetIdAtCoordinate(Eigen::Vector3d({0.0, radius, 0.0}), 1e-8);
-    // auto nodeTwo = structure.NodeGetNodePtr(nodeTwoId);
-    // structure.ConstraintLinearSetDisplacementNode(nodeTwo, Eigen::Vector3d::UnitX(), 0.0);
-
-    // auto nodeThreeId = structure.NodeGetIdAtCoordinate(Eigen::Vector3d({0.0, -radius, 0.0}), 1e-8);
-    // auto nodeThree = structure.NodeGetNodePtr(nodeThreeId);
-    // structure.ConstraintLinearSetDisplacementNode(nodeThree, Eigen::Vector3d::UnitX(), 0.0);
-
-    // structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, Eigen::Vector3d::UnitX(), 0.0);
-    // structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, Eigen::Vector3d::UnitY(), 0.0);
-    // auto topBC = structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, Eigen::Vector3d::UnitZ(), 0.0);
-    
     auto topNodes = structure.GroupGetMemberIds(nodesTop);
-    auto primary = topNodes[0];
+    auto& primary = *structure.NodeGetNodePtr(topNodes[0]);
     topNodes.erase(topNodes.begin());
-    for (auto secondary : topNodes)
+    for (auto secondaryId : topNodes)
     {
-        int constraint = structure.ConstraintLinearEquationCreate(primary, "Z_DISPLACEMENT", 1.0, 0.0);
-        structure.ConstraintLinearEquationAddTerm(constraint, secondary, "Z_DISPLACEMENT", -1.0); 
+        Constraint::Equation equation;
+        equation.AddTerm(Constraint::Term(primary, ToComponentIndex(eDirection::Z), 1.0));
+        auto& secondary = *structure.NodeGetNodePtr(secondaryId);
+        equation.AddTerm(Constraint::Term(secondary, ToComponentIndex(eDirection::Z), -1.0));
+        structure.Constraints().Add(Node::eDof::DISPLACEMENTS, equation);
     }
 
-    structure.SetNumLoadCases(1);
-    structure.LoadSurfacePressureCreate3D(0, elementsTop, nodesTop, 4.0);
+    structure.LoadSurfacePressureCreate3D(elementsTop, nodesTop, loadValue);
+
     // temperature BC
-    auto side_bc = structure.ConstraintLinearSetTemperatureNodeGroup(nodesSide, 0.0);
-    double simulationTime = 2.0 * reversal_point;
+    auto nodesSide = structure.GroupCreate(eGroupId::Nodes);
+    structure.GroupAddNodeFunction(nodesSide, node_is_on_side);
+    auto& sideNodes = *static_cast<Group<NodeBase>*>(structure.GroupGetGroupPtr(nodesSide));
+    structure.Constraints().Add(Node::eDof::TEMPERATURE, Constraint::Value(sideNodes, linear_heating_and_cooling));
+    double simulationTime = 2.0 * reversal_point + 2 * wait;
 
     // solve system
-    NuTo::NewmarkDirect newmark(&structure);
-    newmark.AddTimeDependentConstraintFunction(side_bc, linear_heating_and_cooling);
+    NewmarkDirect newmark(&structure);
     Eigen::Matrix<double, 3, 2> force_application;
-    force_application << 0, 0, 0.05*reversal_point, 1.0, simulationTime, 1.0;
+    force_application << 0, 0, 0.05 * reversal_point, 1.0, simulationTime, 1.0;
     newmark.SetTimeDependentLoadCase(0, force_application);
     newmark.SetPerformLineSearch(true);
     newmark.SetTimeStep(0.05 * reversal_point);
-    newmark.SetToleranceResidual(NuTo::Node::eDof::TEMPERATURE, 1e-4);
-    newmark.SetToleranceResidual(NuTo::Node::eDof::DISPLACEMENTS, 1e-6);
-    newmark.SetToleranceResidual(NuTo::Node::eDof::NONLOCALEQSTRAIN, 1e-9);
+    newmark.SetToleranceResidual(Node::eDof::TEMPERATURE, 1e-4);
+    newmark.SetToleranceResidual(Node::eDof::DISPLACEMENTS, 1e-6);
+    newmark.SetToleranceResidual(Node::eDof::NONLOCALEQSTRAIN, 1e-9);
     newmark.SetAutomaticTimeStepping(true);
     newmark.SetMinTimeStep(1.0);
     newmark.SetMaxTimeStep(reversal_point / 10.0);
 
     newmark.AddResultGroupNodeForce("TopForce", nodesTop);
     newmark.AddResultNodeDisplacements("TopDisplacement", structure.GroupGetMemberIds(nodesTop)[0]);
+    newmark.AddResultTime("Time");
 
     bool deleteDirectory = true;
     boost::filesystem::path p;
     p = filename;
-    newmark.SetResultDirectory(p.stem().string() + "cooling", deleteDirectory);
+    newmark.SetResultDirectory(p.stem().string() + "Load" + std::to_string(loadValue), deleteDirectory);
     newmark.Solve(simulationTime);
 
     return 0;
