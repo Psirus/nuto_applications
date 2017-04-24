@@ -151,6 +151,7 @@ void SetVisualizationAggregate(Structure& structure, int group)
     structure.AddVisualizationComponent(group, eVisualizeWhat::TEMPERATURE);
     structure.AddVisualizationComponent(group, eVisualizeWhat::ENGINEERING_STRAIN);
     structure.AddVisualizationComponent(group, eVisualizeWhat::ENGINEERING_STRESS);
+    structure.AddVisualizationComponent(group, eVisualizeWhat::PRINCIPAL_ENGINEERING_STRESS);
     structure.AddVisualizationComponent(group, eVisualizeWhat::THERMAL_STRAIN);
 }
 int main()
