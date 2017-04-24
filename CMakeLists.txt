@@ -7,7 +7,7 @@ if(ENABLE_MECHANICS)
 
         add_executable(${source} ${source}.cpp)
         target_link_libraries(${source} NuToMechanics NuToMath NuToBase
-            -lboost_program_options -lprofiler ${Boost_LIBRARIES}
+            -lboost_program_options ${Boost_LIBRARIES}
             ${LAPACK_LIBRARIES} ${ANN_LIBRARIES} ${MUMPS_LIBRARIES})
         if(ENABLE_VISUALIZE)
             target_link_libraries(${source} NuToVisualize)

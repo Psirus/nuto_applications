@@ -8,6 +8,6 @@ def run_experiment(load):
 
 
 if __name__ == "__main__":
-    loads = [0.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0]
-    pool = multiprocessing.Pool(2)
+    loads = [0.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0]
+    pool = multiprocessing.Pool(4)
     pool.map(run_experiment, loads)
