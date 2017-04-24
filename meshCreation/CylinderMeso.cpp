@@ -5,7 +5,7 @@ int main(int argc, char* argv[])
 {
     NuTo::GeometryConcrete geometry;
     geometry.SetSeed(1337);
-    geometry.SetSpecimenCylinder(31.0, 91.0);
+    geometry.SetSpecimenCylinder(31.0, 93.0);
     Eigen::MatrixX3d fullGradingCurve(1, 3);
     fullGradingCurve << 12,   16, 0.12;
     geometry.SetGradingCurve(fullGradingCurve);
