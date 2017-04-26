@@ -3,7 +3,7 @@ import subprocess
 
 
 def run_experiment(load):
-    run = subprocess.Popen(['./khoury_cooling', '../meshes/3D/CylinderFine.msh', str(load)])
+    run = subprocess.Popen(['./khoury_cooling', '../meshes/3D/CylinderMeso.msh', str(load)])
     run.wait()
 
 
