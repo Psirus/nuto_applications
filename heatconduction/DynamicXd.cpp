@@ -1,6 +1,8 @@
+#include "mechanics/constraints/ConstraintCompanion.h"
 #include "mechanics/sections/SectionPlane.h"
 #include "mechanics/structures/unstructured/Structure.h"
 #include "mechanics/mesh/MeshGenerator.h"
+#include "mechanics/nodes/NodeDof.h"
 #include "mechanics/timeIntegration/NewmarkDirect.h"
 #include "mechanics/MechanicsEnums.h"
 #include "visualize/VisualizeEnum.h"
@@ -34,26 +36,20 @@ std::pair<double, double> analytic_solution(std::vector<double> x, double t)
 
 void SetConstraints(Structure& structure, TimeIntegrationBase& newmark, double simulationTime)
 {
-    int constraint;
     double initial_temperature, end_temperature;
     Eigen::VectorXd coordinates(2);
-    Eigen::Matrix<double, 2, 2> tempRHS;
-    tempRHS(0, 0) = 0.0;
-    tempRHS(1, 0) = simulationTime;
     for (int node = 0; node < structure.GetNumNodes(); ++node)
     {
         structure.NodeGetCoordinates(node, coordinates);
         // lower boundary
         if ((coordinates[0] == 0) || (coordinates[0] == 1.0) || (coordinates[1] == 0.0) || (coordinates[1] == 1.0))
         {
+            auto& node_object = *dynamic_cast<NodeDof*>(structure.NodeGetNodePtr(node));
             std::tie(initial_temperature, std::ignore) =
                     analytic_solution<2>({coordinates[0], coordinates[1], 0.0}, 0.0);
             std::tie(end_temperature, std::ignore) =
                     analytic_solution<2>({coordinates[0], coordinates[1], 0.0}, simulationTime);
-            tempRHS(0, 1) = initial_temperature;
-            tempRHS(1, 1) = end_temperature;
-            constraint = structure.ConstraintLinearSetTemperatureNode(node, initial_temperature);
-            newmark.AddTimeDependentConstraint(constraint, tempRHS);
+            structure.Constraints().Add(Node::eDof::TEMPERATURE, Constraint::Value(node_object, [=](double time){ return (end_temperature - initial_temperature)*time/simulationTime + initial_temperature; }));
         }
     }
 }
@@ -124,9 +120,9 @@ int main()
     structure.InterpolationTypeSetIntegrationType(interpolationType, eIntegrationType::IntegrationType2D4NGauss9Ip);
     structure.ElementTotalConvertToInterpolationType();
 
-    // auto visualizationGroup = structure.GroupCreate(eGroupId::Elements);
-    // structure.GroupAddElementsTotal(visualizationGroup);
-    // structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::TEMPERATURE);
+    auto visualizationGroup = structure.GroupCreate(eGroupId::Elements);
+    structure.GroupAddElementsTotal(visualizationGroup);
+    structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::TEMPERATURE);
 
     SetInitialCondition(structure);
 

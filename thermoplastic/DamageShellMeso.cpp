@@ -1,5 +1,8 @@
 #include "base/CallbackInterface.h"
 #include "math/LinearInterpolation.h"
+#include "mechanics/dofSubMatrixStorage/BlockFullVector.h"
+#include "math/EigenSolverArpack.h"
+#include "math/SparseMatrixCSRGeneral.h"
 #include "mechanics/structures/unstructured/Structure.h"
 #include "mechanics/nodes/NodeDof.h"
 #include "mechanics/MechanicsEnums.h"
@@ -159,7 +162,7 @@ int main()
     Structure structure(2);
     structure.SetNumTimeDerivatives(1);
 
-    std::string filename = "ShellMeso";
+    std::string filename = "ShellMesoCoarse";
     auto groupIndices = structure.ImportFromGmsh("../meshes/2D/" + filename + ".msh");
 
     auto matrix_group = groupIndices[0].first;
@@ -184,10 +187,10 @@ int main()
     SetVisualizationAggregate(structure, aggregate_group);
 
     // set boundary conditions and loads
-    auto& nodesWest = structure.GroupGetNodeCoordinateRange(eDirection::X, 0.0, 0.0);
-    auto& nodesEast = structure.GroupGetNodeCoordinateRange(eDirection::X, 100.0, 100.0);
-    auto& nodesSouth = structure.GroupGetNodeCoordinateRange(eDirection::Y, 0.0, 0.0);
-    auto& nodesNorth = structure.GroupGetNodeCoordinateRange(eDirection::Y, 20.0, 20.0);
+    auto& nodesWest = structure.GroupGetNodesAtCoordinate(eDirection::X, 0.0);
+    auto& nodesEast = structure.GroupGetNodesAtCoordinate(eDirection::X, 100.0);
+    auto& nodesSouth = structure.GroupGetNodesAtCoordinate(eDirection::Y, 0.0);
+    auto& nodesNorth = structure.GroupGetNodesAtCoordinate(eDirection::Y, 20.0);
 
     // displacement BC
     structure.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(nodesWest, {eDirection::X}));
@@ -199,9 +202,24 @@ int main()
     double temperature = 800.0;
     structure.Constraints().Add(Node::eDof::TEMPERATURE, Constraint::Value(nodesEast, [=](double time){return temperature*time/simulationTime;}));
     structure.Constraints().Add(Node::eDof::TEMPERATURE, Constraint::Value(nodesWest));
+    std::cout << structure.Constraints().GetNumEquations(Node::eDof::TEMPERATURE) << std::endl;
+    std::cout << structure.Constraints().GetNumEquations(Node::eDof::DISPLACEMENTS) << std::endl;
+
+    //auto hessian = structure.BuildGlobalHessian0();
+    //auto solver = EigenSolverArpack();
+    //auto ev = solver.GetSmallest(hessian.JJ.ExportToCSRVector2General());
+    //std::cout << ev.first << std::endl; 
+    ////auto ev_large = solver.GetLargest(hessian.JJ.ExportToCSRVector2General());
+    ////std::cout << ev_large.first << std::endl;
+
+    //auto nodeValues = BlockFullVector<double>(ev.second, structure.GetDofStatus());
+    //auto nodeValuesDependend = structure.NodeCalculateDependentDofValues(nodeValues);
+    //structure.NodeMergeDofValues(0, nodeValues, nodeValuesDependend);
+    //structure.ElementGroupExportVtkDataFile(matrix_group, "matrix.vtu");
+    //structure.ElementGroupExportVtkDataFile(aggregate_group, "aggregates.vtu");
 
     NewmarkDirect newmark(&structure);
-    newmark.SetTimeStep(simulationTime / 200.0);
+    newmark.SetTimeStep(simulationTime / 100.0);
     newmark.SetAutomaticTimeStepping(false);
     newmark.SetResultDirectory("DamageShellResults" + filename + "Nonlinear", true);
     newmark.SetToleranceResidual(Node::eDof::TEMPERATURE, 1e-4);

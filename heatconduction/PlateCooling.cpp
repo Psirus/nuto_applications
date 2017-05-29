@@ -1,6 +1,8 @@
 #include <cmath>
 #include "math/SparseMatrixCSRGeneral.h"
 #include "math/SparseDirectSolverMUMPS.h"
+#include "mechanics/groups/Group.h"
+#include "mechanics/constraints/ConstraintCompanion.h"
 #include "mechanics/sections/SectionPlane.h"
 #include "mechanics/structures/unstructured/Structure.h"
 #include "mechanics/timeIntegration/NewmarkDirect.h"
@@ -57,10 +59,10 @@ double CompareToAnalyticSolution(Structure& structure, double simulationTime)
         exact_values[node] = analytic_solution({coordinates[0], coordinates[1], 0.0}, simulationTime);
         fem_values[node] = structure.NodeGetTemperature(node);
     }
-    std::cout << "Analytic Solution:" << std::endl;
-    std::cout << exact_values << std::endl;
-    std::cout << "FEM Solution:" << std::endl;
-    std::cout << fem_values << std::endl;
+    //std::cout << "Analytic Solution:" << std::endl;
+    //std::cout << exact_values << std::endl;
+    //std::cout << "FEM Solution:" << std::endl;
+    //std::cout << fem_values << std::endl;
     double error = (exact_values - fem_values).norm() / exact_values.norm();
     return error;
 }
@@ -118,9 +120,10 @@ int main()
     structure.GroupAddNodeCoordinateRange(nodes_east, 0, length, length);
     structure.GroupAddNodeCoordinateRange(nodes_south, 1, 0.0, 0.0);
     auto nodes_sw = structure.GroupUnion(nodes_west, nodes_south);
-    auto nodes_essential_boundary = structure.GroupUnion(nodes_sw, nodes_east);
+    auto nodes_essential_boundary_id = structure.GroupUnion(nodes_sw, nodes_east);
+    auto nodes_essential_boundary = *static_cast<Group<NodeBase>*>(structure.GroupGetGroupPtr(nodes_essential_boundary_id));
 
-    structure.ConstraintLinearSetTemperatureNodeGroup(nodes_essential_boundary, boundary_temperature);
+    structure.Constraints().Add(Node::eDof::TEMPERATURE, Constraint::Value(nodes_essential_boundary, boundary_temperature));
 
     SetInitialCondition(structure, initial_temperature);
 

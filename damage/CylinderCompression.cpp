@@ -7,12 +7,18 @@
 #include "math/LinearInterpolation.h"
 #include "mechanics/MechanicsEnums.h"
 #include "mechanics/structures/unstructured/Structure.h"
+#include "mechanics/constitutive/damageLaws/DamageLawExponential.h"
 #include "mechanics/constitutive/laws/AdditiveInputExplicit.h"
 #include "mechanics/constitutive/laws/AdditiveOutput.h"
 #include "mechanics/constitutive/laws/ThermalStrains.h"
+#include "mechanics/constraints/Constraints.h"
+#include "mechanics/constraints/ConstraintCompanion.h"
+#include "mechanics/groups/Group.h"
 #include "mechanics/nodes/NodeBase.h"
 #include "mechanics/timeIntegration/NewmarkDirect.h"
 #include "visualize/VisualizeEnum.h"
+
+using namespace NuTo;
 
 const double radius = 31.0;
 const double height = 186.0;
@@ -26,53 +32,45 @@ struct Properties
     double expansionCoeff;
 };
 
-void SetConstitutiveLaws(NuTo::Structure& structure, int group, Properties properties)
+void SetConstitutiveLaws(Structure& structure, int group, Properties properties)
 {
-    int damage_id =
-            structure.ConstitutiveLawCreate(NuTo::Constitutive::eConstitutiveType::GRADIENT_DAMAGE_ENGINEERING_STRESS);
-    structure.ConstitutiveLawSetParameterDouble(
-            damage_id, NuTo::Constitutive::eConstitutiveParameter::YOUNGS_MODULUS, 25e3);
-    structure.ConstitutiveLawSetParameterDouble(
-            damage_id, NuTo::Constitutive::eConstitutiveParameter::POISSONS_RATIO, .2);
-    structure.ConstitutiveLawSetParameterDouble(
-            damage_id, NuTo::Constitutive::eConstitutiveParameter::NONLOCAL_RADIUS, 1.3);
-    structure.ConstitutiveLawSetParameterDouble(
-            damage_id, NuTo::Constitutive::eConstitutiveParameter::TENSILE_STRENGTH, 4.);
-    structure.ConstitutiveLawSetParameterDouble(
-            damage_id, NuTo::Constitutive::eConstitutiveParameter::COMPRESSIVE_STRENGTH, 4. * 10);
-    structure.ConstitutiveLawSetParameterDouble(
-            damage_id, NuTo::Constitutive::eConstitutiveParameter::FRACTURE_ENERGY, 0.021);
-    structure.ConstitutiveLawSetParameterDouble(
-            damage_id, NuTo::Constitutive::eConstitutiveParameter::DENSITY, properties.density);
+    using namespace Constitutive;
+
+    int damage_id = structure.ConstitutiveLawCreate(eConstitutiveType::GRADIENT_DAMAGE_ENGINEERING_STRESS);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::YOUNGS_MODULUS, 25e3);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::POISSONS_RATIO, .2);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::NONLOCAL_RADIUS, 1.3);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::TENSILE_STRENGTH, 4.);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::COMPRESSIVE_STRENGTH, 4. * 10);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::DENSITY, properties.density);
+    structure.ConstitutiveLawSetDamageLaw(damage_id, DamageLawExponential::Create(4.0 / 25e3, 4.0 / 0.021));
 
     structure.ElementGroupSetConstitutiveLaw(group, damage_id);
 }
 
-void SetInterpolation(NuTo::Structure& structure, int group)
+void SetInterpolation(Structure& structure, int group)
 {
-    structure.InterpolationTypeAdd(
-            group, NuTo::Node::eDof::DISPLACEMENTS, NuTo::Interpolation::eTypeOrder::EQUIDISTANT2);
-    structure.InterpolationTypeAdd(
-            group, NuTo::Node::eDof::NONLOCALEQSTRAIN, NuTo::Interpolation::eTypeOrder::EQUIDISTANT1);
-    structure.InterpolationTypeSetIntegrationType(group, NuTo::eIntegrationType::IntegrationType3D4NGauss4Ip);
+    structure.InterpolationTypeAdd(group, Node::eDof::DISPLACEMENTS, Interpolation::eTypeOrder::EQUIDISTANT2);
+    structure.InterpolationTypeAdd(group, Node::eDof::NONLOCALEQSTRAIN, Interpolation::eTypeOrder::EQUIDISTANT1);
+    structure.InterpolationTypeSetIntegrationType(group, eIntegrationType::IntegrationType3D4NGauss4Ip);
 }
 
-void SetVisualization(NuTo::Structure& structure)
+void SetVisualization(Structure& structure)
 {
-    int visualizationGroup = structure.GroupCreate(NuTo::eGroupId::Elements);
+    int visualizationGroup = structure.GroupCreate(eGroupId::Elements);
     structure.GroupAddElementsTotal(visualizationGroup);
 
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::DISPLACEMENTS);
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::ENGINEERING_STRAIN);
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::ENGINEERING_STRESS);
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::PRINCIPAL_ENGINEERING_STRESS);
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::NONLOCAL_EQ_STRAIN);
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::DAMAGE);
+    structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::DISPLACEMENTS);
+    structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::ENGINEERING_STRAIN);
+    structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::ENGINEERING_STRESS);
+    structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::PRINCIPAL_ENGINEERING_STRESS);
+    structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::NONLOCAL_EQ_STRAIN);
+    structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::DAMAGE);
 }
 
-bool node_is_on_side(NuTo::NodeBase* node)
+bool node_is_on_side(NodeBase* node)
 {
-    auto coordinates = node->Get(NuTo::Node::eDof::COORDINATES, 0);
+    auto coordinates = node->Get(Node::eDof::COORDINATES, 0);
     auto r = std::sqrt(coordinates[0] * coordinates[0] + coordinates[1] * coordinates[1]);
     if (std::abs(radius - r) < 1e-6)
         return true;
@@ -113,7 +111,7 @@ int main(int ac, char* av[])
 {
     auto filename = DeclareCLI(ac, av);
 
-    NuTo::Structure structure(3);
+    Structure structure(3);
     structure.SetNumProcessors(4);
     structure.SetNumTimeDerivatives(1);
 
@@ -134,45 +132,33 @@ int main(int ac, char* av[])
     SetVisualization(structure);
 
     // set boundary conditions
-    auto nodesBottom = structure.GroupCreate(NuTo::eGroupId::Nodes);
-    auto nodesTop = structure.GroupCreate(NuTo::eGroupId::Nodes);
-    structure.GroupAddNodeCoordinateRange(nodesBottom, 2, 0.0, 0.0);
-    structure.GroupAddNodeCoordinateRange(nodesTop, 2, height, height);
+    auto& nodesBottom = structure.GroupGetNodeCoordinateRange(eDirection::Z, -1e-6, 1e-6);
+    auto& nodesTop = structure.GroupGetNodeCoordinateRange(eDirection::Z, height - 1e-6, height + 1e-6);
 
-    auto elementsTop = structure.GroupCreate(NuTo::eGroupId::Elements);
-    structure.GroupAddElementsFromNodes(elementsTop, nodesTop, true);
-
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitX(), 0.0);
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitY(), 0.0);
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesBottom, Eigen::Vector3d::UnitZ(), 0.0);
-    std::cout << structure.GroupGetNumMembers(nodesBottom) << std::endl;
-    std::cout << structure.GroupGetNumMembers(nodesTop) << std::endl;
-
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, Eigen::Vector3d::UnitX(), 0.0);
-    structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, Eigen::Vector3d::UnitY(), 0.0);
-    auto topBC = structure.ConstraintLinearSetDisplacementNodeGroup(nodesTop, Eigen::Vector3d::UnitZ(), 0.0);
-
-    // set load
-    //structure.LoadSurfacePressureCreate3D(0, elementsTop, nodesTop, 10.0);
     double simulationTime = 6000.0;
+    auto ramp = [=](double time) { return -3.0 * time / simulationTime; };
+    structure.Constraints().Add(Node::eDof::DISPLACEMENTS,
+                                Constraint::Component(nodesBottom, {eDirection::X, eDirection::Y, eDirection::Z}));
+    structure.Constraints().Add(Node::eDof::DISPLACEMENTS,
+                                Constraint::Component(nodesTop, {eDirection::X, eDirection::Y}));
+    structure.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(nodesTop, {eDirection::Z}, ramp));
 
-    Eigen::Matrix<double, 2, 2> timeDepenentBC;
-    timeDepenentBC << 0.0, 0.0, simulationTime, -3.0;
 
     // solve system
-    NuTo::NewmarkDirect newmark(&structure);
-    newmark.AddTimeDependentConstraint(topBC, timeDepenentBC);
+    NewmarkDirect newmark(&structure);
     newmark.SetPerformLineSearch(true);
     newmark.SetTimeStep(0.05 * simulationTime);
-    newmark.SetToleranceResidual(NuTo::Node::eDof::TEMPERATURE, 1e-4);
-    newmark.SetToleranceResidual(NuTo::Node::eDof::DISPLACEMENTS, 1e-3);
-    newmark.SetToleranceResidual(NuTo::Node::eDof::NONLOCALEQSTRAIN, 1e-3);
+    newmark.SetToleranceResidual(Node::eDof::TEMPERATURE, 1e-4);
+    newmark.SetToleranceResidual(Node::eDof::DISPLACEMENTS, 1e-3);
+    newmark.SetToleranceResidual(Node::eDof::NONLOCALEQSTRAIN, 1e-3);
     newmark.SetAutomaticTimeStepping(true);
     newmark.SetMinTimeStep(1.0);
     newmark.SetMaxTimeStep(1000);
 
-    newmark.AddResultGroupNodeForce("TopForce", nodesTop);
-    newmark.AddResultNodeDisplacements("TopDisplacement", structure.GroupGetMemberIds(nodesTop)[0]);
+    newmark.AddResultGroupNodeForce("TopForce", structure.GroupGetId(&nodesTop));
+    newmark.AddResultNodeDisplacements("TopDisplacement",
+                                       structure.GroupGetMemberIds(structure.GroupGetId(&nodesTop))[0]);
+    newmark.AddResultTime("Time");
 
     bool deleteDirectory = true;
     boost::filesystem::path p;
