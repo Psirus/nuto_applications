@@ -21,9 +21,72 @@
 using namespace NuTo;
 
 const double radius = 31.0;
-const double height = 186.0;
+const double height = 93.0;
 
-void SetConstitutiveLaws(Structure& structure, int group)
+
+std::array<double, 2> SandstoneExpansion(double temperature)
+{
+    static std::vector<std::array<double, 2>> values = {
+            {{0.0, 0.0}, {200.0, 0.25e-2}, {400.0, 0.6e-2}, {600.0, 1.3e-2}, {800.0, 1.5e-2}, {1600.0, 1.5e-2}}};
+    static auto interpolation = Math::LinearInterpolation(values);
+    return {interpolation(temperature), interpolation.derivative(temperature)};
+}
+
+
+std::array<double, 2> CruzGillenCement(double temperature)
+{
+    static std::vector<std::array<double, 2>> values = {{{0.0, 0.0},
+                                                         {100.0, 0.2e-2},
+                                                         {200.0, 0.2e-2},
+                                                         {300.0, -0.2e-2},
+                                                         {400.0, -0.6e-2},
+                                                         {500.0, -1.1e-2},
+                                                         {600.0, -1.5e-2},
+                                                         {700.0, -1.7e-2},
+                                                         {800.0, -1.8e-2},
+                                                         {1600.0, -1.8e-2}}};
+    static auto interpolation = Math::LinearInterpolation(values);
+    return {interpolation(temperature), interpolation.derivative(temperature)};
+}
+
+
+void SetConstitutiveLawAggregate(Structure& structure, int group)
+{
+    using namespace Constitutive;
+    int additive_input_id = structure.ConstitutiveLawCreate(eConstitutiveType::ADDITIVE_INPUT_EXPLICIT);
+    int additive_output_id = structure.ConstitutiveLawCreate(eConstitutiveType::ADDITIVE_OUTPUT);
+
+    int lin_elastic_id = structure.ConstitutiveLawCreate(eConstitutiveType::LINEAR_ELASTIC_ENGINEERING_STRESS);
+    structure.ConstitutiveLawSetParameterDouble(lin_elastic_id, eConstitutiveParameter::YOUNGS_MODULUS, 70e3);
+    structure.ConstitutiveLawSetParameterDouble(lin_elastic_id, eConstitutiveParameter::POISSONS_RATIO, .2);
+
+    int heat_conduction_id = structure.ConstitutiveLawCreate(eConstitutiveType::HEAT_CONDUCTION);
+    structure.ConstitutiveLawSetParameterDouble(heat_conduction_id, eConstitutiveParameter::HEAT_CAPACITY, 700e-6);
+    structure.ConstitutiveLawSetParameterDouble(heat_conduction_id, eConstitutiveParameter::THERMAL_CONDUCTIVITY, 3.3);
+    structure.ConstitutiveLawSetParameterDouble(heat_conduction_id, eConstitutiveParameter::DENSITY, 2500.0);
+
+    int thermal_strains_id = structure.ConstitutiveLawCreate(eConstitutiveType::THERMAL_STRAINS);
+    ConstitutiveBase* thermal_strains = structure.ConstitutiveLawGetConstitutiveLawPtr(thermal_strains_id);
+    thermal_strains->SetParameterFunction(SandstoneExpansion);
+
+    AdditiveInputExplicit* additive_input =
+            static_cast<AdditiveInputExplicit*>(structure.ConstitutiveLawGetConstitutiveLawPtr(additive_input_id));
+    AdditiveOutput* additive_output =
+            static_cast<AdditiveOutput*>(structure.ConstitutiveLawGetConstitutiveLawPtr(additive_output_id));
+    ConstitutiveBase* lin_elastic = structure.ConstitutiveLawGetConstitutiveLawPtr(lin_elastic_id);
+    ConstitutiveBase* heat_conduction = structure.ConstitutiveLawGetConstitutiveLawPtr(heat_conduction_id);
+
+    additive_input->AddConstitutiveLaw(*lin_elastic);
+    additive_input->AddConstitutiveLaw(*thermal_strains, eInput::ENGINEERING_STRAIN);
+
+    additive_output->AddConstitutiveLaw(*additive_input);
+    additive_output->AddConstitutiveLaw(*heat_conduction);
+
+    structure.ElementGroupSetConstitutiveLaw(group, additive_output_id);
+}
+
+
+void SetConstitutiveLawMatrix(Structure& structure, int group)
 {
     using namespace Constitutive;
 
@@ -44,15 +107,17 @@ void SetConstitutiveLaws(Structure& structure, int group)
     structure.ConstitutiveLawSetParameterDouble(hc_id, eConstitutiveParameter::DENSITY, 3.120e-6);
 
     int thermal_strains_id = structure.ConstitutiveLawCreate(eConstitutiveType::THERMAL_STRAINS);
-    structure.ConstitutiveLawSetParameterDouble(thermal_strains_id,
-                                                eConstitutiveParameter::THERMAL_EXPANSION_COEFFICIENT, 20e-6);
+    ConstitutiveBase* thermal_strains = structure.ConstitutiveLawGetConstitutiveLawPtr(thermal_strains_id);
+    thermal_strains->SetParameterFunction(CruzGillenCement);
+    //structure.ConstitutiveLawSetParameterDouble(thermal_strains_id,
+                                                //eConstitutiveParameter::THERMAL_EXPANSION_COEFFICIENT, 20e-6);
+    
 
     auto additive_input =
             static_cast<AdditiveInputExplicit*>(structure.ConstitutiveLawGetConstitutiveLawPtr(additive_input_id));
     auto additive_output =
             static_cast<AdditiveOutput*>(structure.ConstitutiveLawGetConstitutiveLawPtr(additive_output_id));
     ConstitutiveBase* damage = structure.ConstitutiveLawGetConstitutiveLawPtr(damage_id);
-    ConstitutiveBase* thermal_strains = structure.ConstitutiveLawGetConstitutiveLawPtr(thermal_strains_id);
     ConstitutiveBase* heat_conduction = structure.ConstitutiveLawGetConstitutiveLawPtr(hc_id);
 
     additive_input->AddConstitutiveLaw(*damage);
@@ -64,7 +129,8 @@ void SetConstitutiveLaws(Structure& structure, int group)
     structure.ElementGroupSetConstitutiveLaw(group, additive_output_id);
 }
 
-void SetInterpolation(Structure& structure, int group)
+
+void SetInterpolationMatrix(Structure& structure, int group)
 {
     structure.InterpolationTypeAdd(group, Node::eDof::DISPLACEMENTS, Interpolation::eTypeOrder::EQUIDISTANT2);
     structure.InterpolationTypeAdd(group, Node::eDof::TEMPERATURE, Interpolation::eTypeOrder::EQUIDISTANT2);
@@ -72,19 +138,35 @@ void SetInterpolation(Structure& structure, int group)
     structure.InterpolationTypeSetIntegrationType(group, eIntegrationType::IntegrationType3D4NGauss4Ip);
 }
 
-void SetVisualization(Structure& structure)
-{
-    int visualizationGroup = structure.GroupCreate(eGroupId::Elements);
-    structure.GroupAddElementsTotal(visualizationGroup);
 
-    structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::DISPLACEMENTS);
-    structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::ENGINEERING_STRAIN);
-    structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::ENGINEERING_STRESS);
-    structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::PRINCIPAL_ENGINEERING_STRESS);
-    structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::NONLOCAL_EQ_STRAIN);
-    structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::DAMAGE);
-    structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::TEMPERATURE);
-    structure.AddVisualizationComponent(visualizationGroup, eVisualizeWhat::HEAT_FLUX);
+void SetInterpolationAggregates(Structure& structure, int group)
+{
+    structure.InterpolationTypeAdd(group, Node::eDof::DISPLACEMENTS, Interpolation::eTypeOrder::EQUIDISTANT2);
+    structure.InterpolationTypeAdd(group, Node::eDof::TEMPERATURE, Interpolation::eTypeOrder::EQUIDISTANT2);
+}
+
+
+void SetVisualizationMatrix(Structure& structure, int group)
+{
+    structure.AddVisualizationComponent(group, eVisualizeWhat::DISPLACEMENTS);
+    structure.AddVisualizationComponent(group, eVisualizeWhat::ENGINEERING_STRAIN);
+    structure.AddVisualizationComponent(group, eVisualizeWhat::ENGINEERING_STRESS);
+    structure.AddVisualizationComponent(group, eVisualizeWhat::PRINCIPAL_ENGINEERING_STRESS);
+    structure.AddVisualizationComponent(group, eVisualizeWhat::NONLOCAL_EQ_STRAIN);
+    structure.AddVisualizationComponent(group, eVisualizeWhat::DAMAGE);
+    structure.AddVisualizationComponent(group, eVisualizeWhat::TEMPERATURE);
+    structure.AddVisualizationComponent(group, eVisualizeWhat::HEAT_FLUX);
+}
+
+
+void SetVisualizationAggregate(Structure& structure, int group)
+{
+    structure.AddVisualizationComponent(group, eVisualizeWhat::DISPLACEMENTS);
+    structure.AddVisualizationComponent(group, eVisualizeWhat::TEMPERATURE);
+    structure.AddVisualizationComponent(group, eVisualizeWhat::ENGINEERING_STRAIN);
+    structure.AddVisualizationComponent(group, eVisualizeWhat::ENGINEERING_STRESS);
+    structure.AddVisualizationComponent(group, eVisualizeWhat::THERMAL_STRAIN);
+    structure.AddVisualizationComponent(group, eVisualizeWhat::PRINCIPAL_ENGINEERING_STRESS);
 }
 
 
@@ -99,26 +181,40 @@ int main(int argc, char* argv[])
 
     // import mesh
     auto groupIndices = structure.ImportFromGmsh(filename);
+    bool isMeso = groupIndices.size() == 2;
+    if (isMeso)
+    {
+        auto matrix_group = groupIndices[0].first;
+        auto aggregate_group = groupIndices[1].first;
+        SetConstitutiveLawMatrix(structure, matrix_group);
+        SetConstitutiveLawAggregate(structure, aggregate_group);
 
-    auto matrix_group = groupIndices[0].first;
+        auto interpolationMatrix = groupIndices[0].second;
+        auto interpolationAggreg = groupIndices[1].second;
+        SetInterpolationMatrix(structure, interpolationMatrix);
+        SetInterpolationAggregates(structure, interpolationAggreg);
 
-    // set constitutive laws
-    SetConstitutiveLaws(structure, matrix_group);
+        SetVisualizationMatrix(structure, matrix_group);
+        SetVisualizationAggregate(structure, aggregate_group);
+    }
+    else
+    {
+        auto matrix_group = groupIndices[0].first;
+        SetConstitutiveLawMatrix(structure, matrix_group);
 
-    // set interpolation types
-    auto interpolation = groupIndices[0].second;
-    SetInterpolation(structure, interpolation);
+        auto interpolation = groupIndices[0].second;
+        SetInterpolationMatrix(structure, interpolation);
+        SetVisualizationMatrix(structure, matrix_group);
+    }
     structure.ElementTotalConvertToInterpolationType();
-
-    SetVisualization(structure);
 
     // set boundary conditions
     auto& nodesBottom = structure.GroupGetNodeCoordinateRange(eDirection::Z, -1e-6, 1e-6);
     auto& nodesTop = structure.GroupGetNodeCoordinateRange(eDirection::Z, height - 1e-6, height + 1e-6);
 
-    auto topNodes = structure.GroupGetMemberIds(structure.GroupGetId(&nodesTop));
-    auto& primary = *(nodesTop.begin()->second);
-    nodesTop.erase(nodesTop.begin());
+    auto firstNodeId = nodesTop.begin()->first;
+    auto& primary = *(nodesTop.at(firstNodeId));
+    nodesTop.RemoveMember(firstNodeId);
     for (auto& secondary : nodesTop | boost::adaptors::map_values | boost::adaptors::indirected)
     {
         Constraint::Equation equation;
