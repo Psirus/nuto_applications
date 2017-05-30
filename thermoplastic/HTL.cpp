@@ -67,7 +67,9 @@ void SetConstitutiveLawAggregate(Structure& structure, int group)
 
     int thermal_strains_id = structure.ConstitutiveLawCreate(eConstitutiveType::THERMAL_STRAINS);
     ConstitutiveBase* thermal_strains = structure.ConstitutiveLawGetConstitutiveLawPtr(thermal_strains_id);
-    thermal_strains->SetParameterFunction(SandstoneExpansion);
+    //thermal_strains->SetParameterFunction(SandstoneExpansion);
+    structure.ConstitutiveLawSetParameterDouble(thermal_strains_id,
+                                                eConstitutiveParameter::THERMAL_EXPANSION_COEFFICIENT, 30e-6);
 
     AdditiveInputExplicit* additive_input =
             static_cast<AdditiveInputExplicit*>(structure.ConstitutiveLawGetConstitutiveLawPtr(additive_input_id));
@@ -108,9 +110,9 @@ void SetConstitutiveLawMatrix(Structure& structure, int group)
 
     int thermal_strains_id = structure.ConstitutiveLawCreate(eConstitutiveType::THERMAL_STRAINS);
     ConstitutiveBase* thermal_strains = structure.ConstitutiveLawGetConstitutiveLawPtr(thermal_strains_id);
-    thermal_strains->SetParameterFunction(CruzGillenCement);
-    //structure.ConstitutiveLawSetParameterDouble(thermal_strains_id,
-                                                //eConstitutiveParameter::THERMAL_EXPANSION_COEFFICIENT, 20e-6);
+    //thermal_strains->SetParameterFunction(CruzGillenCement);
+    structure.ConstitutiveLawSetParameterDouble(thermal_strains_id,
+                                                eConstitutiveParameter::THERMAL_EXPANSION_COEFFICIENT, 20e-6);
     
 
     auto additive_input =
@@ -172,9 +174,9 @@ void SetVisualizationAggregate(Structure& structure, int group)
 
 int main(int argc, char* argv[])
 {
-    std::string filename = argv[1];
-    std::string outputDir = argv[2];
-    double endTemperature = std::stod(argv[3]);
+    const std::string filename = argv[1];
+    const std::string outputDir = argv[2];
+    const double endTemperature = std::stod(argv[3]);
 
     Structure structure(3);
     structure.SetNumTimeDerivatives(1);
@@ -227,7 +229,8 @@ int main(int argc, char* argv[])
                                               radius - 1e-6, radius + 1e-6);
     auto& nodesLateralGroup = *dynamic_cast<Group<NodeBase>*>(structure.GroupGetGroupPtr(nodesLateral));
 
-    double heatingTime = 6000.0;
+    const double heatingRate = 1.0/60.0; // 1K/min
+    const double heatingTime = endTemperature / heatingRate;
     structure.Constraints().Add(Node::eDof::DISPLACEMENTS,
                                 Constraint::Component(nodesBottom, {eDirection::X, eDirection::Y, eDirection::Z}));
     structure.Constraints().Add(Node::eDof::DISPLACEMENTS,
@@ -262,6 +265,7 @@ int main(int argc, char* argv[])
 
     bool deleteDirectory = true;
     newmark.SetResultDirectory(outputDir, deleteDirectory);
+    structure.GetLogger().OpenFile(outputDir + "/logFile");
 
     newmark.Solve(heatingTime);
 
