@@ -1,6 +1,7 @@
 #include <iostream>
 #include <boost/range/adaptor/map.hpp>
 #include <boost/range/adaptor/indirected.hpp>
+#include <boost/range/join.hpp>
 #include <cmath>
 #include "math/SparseMatrixCSRGeneral.h"
 #include "math/SparseDirectSolverMUMPS.h"
@@ -61,9 +62,9 @@ void SetConstitutiveLawAggregate(Structure& structure, int group)
     structure.ConstitutiveLawSetParameterDouble(lin_elastic_id, eConstitutiveParameter::POISSONS_RATIO, .2);
 
     int heat_conduction_id = structure.ConstitutiveLawCreate(eConstitutiveType::HEAT_CONDUCTION);
-    structure.ConstitutiveLawSetParameterDouble(heat_conduction_id, eConstitutiveParameter::HEAT_CAPACITY, 700e-6);
-    structure.ConstitutiveLawSetParameterDouble(heat_conduction_id, eConstitutiveParameter::THERMAL_CONDUCTIVITY, 3.3);
-    structure.ConstitutiveLawSetParameterDouble(heat_conduction_id, eConstitutiveParameter::DENSITY, 2500.0);
+    structure.ConstitutiveLawSetParameterDouble(heat_conduction_id, eConstitutiveParameter::HEAT_CAPACITY, 700.0);
+    structure.ConstitutiveLawSetParameterDouble(heat_conduction_id, eConstitutiveParameter::THERMAL_CONDUCTIVITY, 3.3e-3);
+    structure.ConstitutiveLawSetParameterDouble(heat_conduction_id, eConstitutiveParameter::DENSITY, 2.5e-6);
 
     int thermal_strains_id = structure.ConstitutiveLawCreate(eConstitutiveType::THERMAL_STRAINS);
     ConstitutiveBase* thermal_strains = structure.ConstitutiveLawGetConstitutiveLawPtr(thermal_strains_id);
@@ -104,9 +105,9 @@ void SetConstitutiveLawMatrix(Structure& structure, int group)
     structure.ConstitutiveLawSetDamageLaw(damage_id, DamageLawExponential::Create(4.0 / 25e3, 4.0 / 0.021));
 
     int hc_id = structure.ConstitutiveLawCreate(eConstitutiveType::HEAT_CONDUCTION);
-    structure.ConstitutiveLawSetParameterDouble(hc_id, eConstitutiveParameter::HEAT_CAPACITY, 2000e+6);
-    structure.ConstitutiveLawSetParameterDouble(hc_id, eConstitutiveParameter::THERMAL_CONDUCTIVITY, 1.1e3);
-    structure.ConstitutiveLawSetParameterDouble(hc_id, eConstitutiveParameter::DENSITY, 3.120e-6);
+    structure.ConstitutiveLawSetParameterDouble(hc_id, eConstitutiveParameter::HEAT_CAPACITY, 700.0);
+    structure.ConstitutiveLawSetParameterDouble(hc_id, eConstitutiveParameter::THERMAL_CONDUCTIVITY, 2.1e-3);
+    structure.ConstitutiveLawSetParameterDouble(hc_id, eConstitutiveParameter::DENSITY, 2.0e-6);
 
     int thermal_strains_id = structure.ConstitutiveLawCreate(eConstitutiveType::THERMAL_STRAINS);
     ConstitutiveBase* thermal_strains = structure.ConstitutiveLawGetConstitutiveLawPtr(thermal_strains_id);
@@ -172,8 +173,38 @@ void SetVisualizationAggregate(Structure& structure, int group)
 }
 
 
+void SetCommonBCs(Structure& structure, Group<NodeBase>& nodesTop, Group<NodeBase>& nodesBottom, NodeBase& primary, std::function<double(double)> temperatureRamp)
+{
+    auto firstNodeId = nodesTop.begin()->first;
+    nodesTop.RemoveMember(firstNodeId);
+    for (auto& secondary : nodesTop | boost::adaptors::map_values | boost::adaptors::indirected)
+    {
+        Constraint::Equation equation;
+        equation.AddTerm(Constraint::Term(primary, ToComponentIndex(eDirection::Z), 1.0));
+        equation.AddTerm(Constraint::Term(secondary, ToComponentIndex(eDirection::Z), -1.0));
+        structure.Constraints().Add(Node::eDof::DISPLACEMENTS, equation);
+    }
+    nodesTop.AddMember(firstNodeId, &primary);
+    structure.Constraints().Add(Node::eDof::DISPLACEMENTS,
+                                Constraint::Component(nodesBottom, {eDirection::Z}));
+
+    int nodesLateral = structure.GroupCreate(eGroupId::Nodes);
+    structure.GroupAddNodeCylinderRadiusRange(nodesLateral, Eigen::Vector3d::Zero(), Eigen::Vector3d::UnitZ(),
+                                              radius - 1e-6, radius + 1e-6);
+    auto& nodesLateralGroup = *dynamic_cast<Group<NodeBase>*>(structure.GroupGetGroupPtr(nodesLateral));
+
+    structure.Constraints().Add(Node::eDof::TEMPERATURE, Constraint::Value(nodesLateralGroup, temperatureRamp));
+}
+
+
 int main(int argc, char* argv[])
 {
+    if (argc == 1)
+    {
+        std::cout << "Arguments are meshfile, output directory and end temperature" << std::endl;
+        std::exit(0);
+    }
+
     const std::string filename = argv[1];
     const std::string outputDir = argv[2];
     const double endTemperature = std::stod(argv[3]);
@@ -211,30 +242,13 @@ int main(int argc, char* argv[])
     structure.ElementTotalConvertToInterpolationType();
 
     // set boundary conditions
-    auto& nodesBottom = structure.GroupGetNodeCoordinateRange(eDirection::Z, -1e-6, 1e-6);
     auto& nodesTop = structure.GroupGetNodeCoordinateRange(eDirection::Z, height - 1e-6, height + 1e-6);
+    auto& nodesBottom = structure.GroupGetNodeCoordinateRange(eDirection::Z, -1e-6, 1e-6);
 
-    auto firstNodeId = nodesTop.begin()->first;
-    auto& primary = *(nodesTop.at(firstNodeId));
-    nodesTop.RemoveMember(firstNodeId);
-    for (auto& secondary : nodesTop | boost::adaptors::map_values | boost::adaptors::indirected)
-    {
-        Constraint::Equation equation;
-        equation.AddTerm(Constraint::Term(primary, ToComponentIndex(eDirection::Z), 1.0));
-        equation.AddTerm(Constraint::Term(secondary, ToComponentIndex(eDirection::Z), -1.0));
-        structure.Constraints().Add(Node::eDof::DISPLACEMENTS, equation);
-    }
-    int nodesLateral = structure.GroupCreate(eGroupId::Nodes);
-    structure.GroupAddNodeCylinderRadiusRange(nodesLateral, Eigen::Vector3d::Zero(), Eigen::Vector3d::UnitZ(),
-                                              radius - 1e-6, radius + 1e-6);
-    auto& nodesLateralGroup = *dynamic_cast<Group<NodeBase>*>(structure.GroupGetGroupPtr(nodesLateral));
+    auto& primary = *(nodesTop.begin()->second);
 
     const double heatingRate = 1.0/60.0; // 1K/min
     const double heatingTime = endTemperature / heatingRate;
-    structure.Constraints().Add(Node::eDof::DISPLACEMENTS,
-                                Constraint::Component(nodesBottom, {eDirection::X, eDirection::Y, eDirection::Z}));
-    structure.Constraints().Add(Node::eDof::DISPLACEMENTS,
-                                Constraint::Component(nodesTop, {eDirection::X, eDirection::Y}));
 
     auto temperatureRamp = [=](double time) {
         if (time < heatingTime)
@@ -242,8 +256,13 @@ int main(int argc, char* argv[])
         else
             return endTemperature;
     };
-    structure.Constraints().Add(Node::eDof::TEMPERATURE, Constraint::Value(nodesLateralGroup, temperatureRamp));
 
+    SetCommonBCs(structure, nodesTop, nodesBottom, primary, temperatureRamp);
+
+    auto& origin = structure.NodeGetAtCoordinate(Eigen::Vector3d({0.0, 0.0, 0.0}));
+    structure.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(origin, {eDirection::X, eDirection::Y}));
+    auto& nodeYrZ0 = structure.NodeGetAtCoordinate(Eigen::Vector3d({0.0, radius, 0.0}));
+    structure.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(nodeYrZ0, {eDirection::X}));
 
     double loadingTime = 2000.0;
     double simulationTime = heatingTime + loadingTime;
@@ -256,7 +275,7 @@ int main(int argc, char* argv[])
     newmark.SetToleranceResidual(Node::eDof::NONLOCALEQSTRAIN, 1e-3);
     newmark.SetAutomaticTimeStepping(true);
     newmark.SetMinTimeStep(1.0);
-    newmark.SetMaxTimeStep(1000);
+    newmark.SetMaxTimeStep(endTemperature*60.0/5.0); // so that the heating can be done in 5 steps in the least
 
     newmark.AddResultGroupNodeForce("TopForce", structure.GroupGetId(&nodesTop));
     newmark.AddResultNodeDisplacements("TopDisplacement",
@@ -269,6 +288,10 @@ int main(int argc, char* argv[])
 
     newmark.Solve(heatingTime);
 
+    structure.Constraints().RemoveAll();
+
+    SetCommonBCs(structure, nodesTop, nodesBottom, primary, temperatureRamp);
+
     auto heatedDisplacment = primary.Get(Node::eDof::DISPLACEMENTS, 0);
     auto displacementRamp = [=](double time) {
         return heatedDisplacment[2] - 3.0 * (time - heatingTime) / loadingTime;
@@ -276,6 +299,14 @@ int main(int argc, char* argv[])
     structure.Constraints().Add(Node::eDof::DISPLACEMENTS,
                                 Constraint::Component(primary, {eDirection::Z}, displacementRamp));
 
+    for (auto& topNode : boost::join(nodesTop, nodesBottom) | boost::adaptors::map_values | boost::adaptors::indirected)
+    {
+        auto displacements = topNode.Get(Node::eDof::DISPLACEMENTS);
+        structure.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(topNode, {eDirection::X}, displacements[0]));
+        structure.Constraints().Add(Node::eDof::DISPLACEMENTS, Constraint::Component(topNode, {eDirection::Y}, displacements[1]));
+    }
+
+    newmark.SetTimeStep(loadingTime / 32.0);
     newmark.Solve(simulationTime);
     return 0;
 }
