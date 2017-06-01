@@ -51,6 +51,7 @@ c0 = newreg; Circle(c0) = {p1, p0, p2};
 c1 = newreg; Circle(c1) = {p2, p0, p1};
 baseLoop = newreg; Line Loop(baseLoop) = {c0, c1};
 baseSurface = newreg; Plane Surface(baseSurface) = {baseLoop};
+Point { p0 } In Surface {baseSurface};
 
 // top cirle
 p3 = newp; Point(p3) = {0, 0, height, meshSpecimen};

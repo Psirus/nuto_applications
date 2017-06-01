@@ -2,7 +2,7 @@ Mesh.Algorithm3D = 2;
 Mesh.Optimize = 4;
 Mesh.ElementOrder = 2;
 
-coarseness = 3.5;
+coarseness = 5;
 r = 31.0;
 h = 93.0;
 
@@ -19,6 +19,7 @@ Circle(4) = {5,1,2};
 
 Line Loop(5) = {1,2,3,4};
 Plane Surface(6) = {5};
+Point{1} In Surface{6};
 
 out[] = Extrude {0,0,h} {
   Surface{6};
