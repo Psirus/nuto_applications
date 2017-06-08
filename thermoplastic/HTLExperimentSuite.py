@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import multiprocessing
-import matplotlib.pyplot as plt
 import subprocess
 import argparse
 import os
@@ -17,6 +16,7 @@ def get_strength(directory):
 
 
 def plot_strengths(directory):
+    import matplotlib.pyplot as plt
     strengths = []
     for temperature in Temperatures:
         resultDir = os.path.join(directory, str(temperature))
@@ -43,7 +43,8 @@ if __name__ == "__main__":
     print(args.executable)
     print(args.mesh)
     print(args.resultDir)
-    os.mkdir(args.resultDir)
+    if not os.path.isdir(args.resultDir):
+        os.mkdir(args.resultDir)
 
     def run_experiment(temperature):
         resultDir = os.path.join(args.resultDir, str(temperature))
@@ -52,5 +53,5 @@ if __name__ == "__main__":
         print(run.args)
         run.wait()
 
-    pool = multiprocessing.Pool(2)
+    pool = multiprocessing.Pool(11)
     pool.map(run_experiment, Temperatures)

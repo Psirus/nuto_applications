@@ -39,7 +39,7 @@ Physical Volume(101) = {out[1]};
 
 
 def create_meshfile(r, h):
-    coarseness = r / 5.0
+    coarseness = r / 10.0
     geofilename = 'Cylinder{0}.geo'.format(r)
     with open(geofilename, 'w') as geofile:
         geofile.write(Header.format(r, h, coarseness)+Template)
@@ -53,7 +53,7 @@ def run_simulation(r):
     ratio = 3.0
     h = ratio * r
     meshfile = create_meshfile(r, h)
-    resultdir = os.path.join('radius', str(r))
+    resultdir = os.path.join('convergenceRadius', str(r))
     os.mkdir(resultdir)
     run = subprocess.Popen(['./HTLVariableSize', meshfile, resultdir, '500.0', str(r), str(h)])
     run.wait()
@@ -61,6 +61,6 @@ def run_simulation(r):
 
 if __name__ == "__main__":
     radii = np.linspace(10, 60, 11)
-    os.mkdir('radius')
-    pool = multiprocessing.Pool(11)
+    radii = np.append(radii, [90, 120, 150, 180, 210])
+    pool = multiprocessing.Pool(16)
     pool.map(run_simulation, radii)

@@ -87,7 +87,7 @@ void SetConstitutiveLawAggregate(Structure& structure, int group)
 }
 
 
-void SetConstitutiveLawMatrix(Structure& structure, int group)
+void SetConstitutiveLawMatrix(Structure& structure, int group, const double radius)
 {
     using namespace Constitutive;
 
@@ -97,7 +97,7 @@ void SetConstitutiveLawMatrix(Structure& structure, int group)
     int damage_id = structure.ConstitutiveLawCreate(eConstitutiveType::GRADIENT_DAMAGE_ENGINEERING_STRESS);
     structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::YOUNGS_MODULUS, 25e3);
     structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::POISSONS_RATIO, .2);
-    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::NONLOCAL_RADIUS, 1.3);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::NONLOCAL_RADIUS, 1.3 * 31.0 / radius);
     structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::TENSILE_STRENGTH, 4.);
     structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::COMPRESSIVE_STRENGTH, 4. * 10);
     structure.ConstitutiveLawSetDamageLaw(damage_id, DamageLawExponential::Create(4.0 / 25e3, 4.0 / 0.021));
@@ -199,7 +199,7 @@ int main(int argc, char* argv[])
 {
     if (argc == 1)
     {
-        std::cout << "Arguments are meshfile, output directory and end temperature" << std::endl;
+        std::cout << "Arguments are meshfile, output directory, end temperature, radius and cylinder height" << std::endl;
         std::exit(0);
     }
 
@@ -219,7 +219,7 @@ int main(int argc, char* argv[])
     {
         auto matrix_group = groupIndices[0].first;
         auto aggregate_group = groupIndices[1].first;
-        SetConstitutiveLawMatrix(structure, matrix_group);
+        SetConstitutiveLawMatrix(structure, matrix_group, radius);
         SetConstitutiveLawAggregate(structure, aggregate_group);
 
         auto interpolationMatrix = groupIndices[0].second;
@@ -233,7 +233,7 @@ int main(int argc, char* argv[])
     else
     {
         auto matrix_group = groupIndices[0].first;
-        SetConstitutiveLawMatrix(structure, matrix_group);
+        SetConstitutiveLawMatrix(structure, matrix_group, radius);
 
         auto interpolation = groupIndices[0].second;
         SetInterpolationMatrix(structure, interpolation);
@@ -247,7 +247,7 @@ int main(int argc, char* argv[])
 
     auto& primary = *(nodesTop.begin()->second);
 
-    const double heatingRate = 1.0 / 60.0; // 1K/min
+    const double heatingRate = 4.0 / 60.0; // 1K/min
     const double heatingTime = endTemperature / heatingRate;
 
     auto temperatureRamp = [=](double time) {

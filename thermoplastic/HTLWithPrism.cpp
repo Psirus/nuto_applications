@@ -342,7 +342,7 @@ int main(int argc, char* argv[])
     newmark.SetToleranceResidual(Node::eDof::DISPLACEMENTS, 1e-3);
     newmark.SetToleranceResidual(Node::eDof::NONLOCALEQSTRAIN, 1e-3);
     newmark.SetAutomaticTimeStepping(true);
-    newmark.SetMinTimeStep(1.0-5);
+    newmark.SetMinTimeStep(1.0e-5);
 
     if (endTemperature == 0.0)
         newmark.SetMaxTimeStep(100.0);
