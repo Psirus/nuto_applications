@@ -103,7 +103,7 @@ void SetConstitutiveLawMatrix(Structure& structure, int group)
     structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::NONLOCAL_RADIUS, 1.3);
     structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::TENSILE_STRENGTH, 4.);
     structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::COMPRESSIVE_STRENGTH, 4. * 10);
-    structure.ConstitutiveLawSetDamageLaw(damage_id, DamageLawExponential::Create(4.0 / 25e3, 4.0 / 0.021));
+    structure.ConstitutiveLawSetDamageLaw(damage_id, DamageLawExponential::Create(4.0 / 25e3, 4.0 / 0.015, 0.95));
 
     int hc_id = structure.ConstitutiveLawCreate(eConstitutiveType::HEAT_CONDUCTION);
     structure.ConstitutiveLawSetParameterDouble(hc_id, eConstitutiveParameter::HEAT_CAPACITY, 700.0);
@@ -276,7 +276,7 @@ int main(int argc, char* argv[])
     newmark.SetToleranceResidual(Node::eDof::DISPLACEMENTS, 1e-3);
     newmark.SetToleranceResidual(Node::eDof::NONLOCALEQSTRAIN, 1e-3);
     newmark.SetAutomaticTimeStepping(true);
-    newmark.SetMinTimeStep(1.0);
+    newmark.SetMinTimeStep(1.0e-5);
 
     if (endTemperature == 0.0)
         newmark.SetMaxTimeStep(100.0);
