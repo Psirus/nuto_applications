@@ -5,6 +5,7 @@
 #include "mechanics/nodes/NodeDof.h"
 #include "mechanics/MechanicsEnums.h"
 #include "mechanics/structures/StructureOutputBlockMatrix.h"
+#include "mechanics/constitutive/damageLaws/DamageLawExponential.h"
 #include "mechanics/constitutive/laws/AdditiveInputExplicit.h"
 #include "mechanics/constitutive/laws/AdditiveOutput.h"
 #include "mechanics/constitutive/laws/ThermalStrains.h"
@@ -16,26 +17,19 @@ using namespace NuTo;
 
 void SetConstitutiveLawConcrete(NuTo::Structure& structure)
 {
+    using namespace Constitutive;
+
     int additive_input_id =
             structure.ConstitutiveLawCreate(NuTo::Constitutive::eConstitutiveType::ADDITIVE_INPUT_EXPLICIT);
     int additive_output_id = structure.ConstitutiveLawCreate(NuTo::Constitutive::eConstitutiveType::ADDITIVE_OUTPUT);
 
-    int damage_id =
-            structure.ConstitutiveLawCreate(NuTo::Constitutive::eConstitutiveType::GRADIENT_DAMAGE_ENGINEERING_STRESS);
-    structure.ConstitutiveLawSetParameterDouble(damage_id, NuTo::Constitutive::eConstitutiveParameter::YOUNGS_MODULUS,
-                                                25e3);
-    structure.ConstitutiveLawSetParameterDouble(damage_id, NuTo::Constitutive::eConstitutiveParameter::POISSONS_RATIO,
-                                                .2);
-    structure.ConstitutiveLawSetParameterDouble(damage_id, NuTo::Constitutive::eConstitutiveParameter::NONLOCAL_RADIUS,
-                                                1.3);
-    structure.ConstitutiveLawSetParameterDouble(damage_id, NuTo::Constitutive::eConstitutiveParameter::TENSILE_STRENGTH,
-                                                4.);
-    structure.ConstitutiveLawSetParameterDouble(
-            damage_id, NuTo::Constitutive::eConstitutiveParameter::COMPRESSIVE_STRENGTH, 4. * 10);
-    structure.ConstitutiveLawSetParameterDouble(damage_id, NuTo::Constitutive::eConstitutiveParameter::FRACTURE_ENERGY,
-                                                0.021);
-    // structure.ConstitutiveLawSetDamageLaw(damage_id,
-    //        NuTo::Constitutive::eDamageLawType::ISOTROPIC_EXPONENTIAL_SOFTENING);
+    int damage_id = structure.ConstitutiveLawCreate(eConstitutiveType::GRADIENT_DAMAGE_ENGINEERING_STRESS);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::YOUNGS_MODULUS, 25e3);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::POISSONS_RATIO, .2);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::NONLOCAL_RADIUS, 1.3);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::TENSILE_STRENGTH, 4.);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::COMPRESSIVE_STRENGTH, 40.0);
+    structure.ConstitutiveLawSetDamageLaw(damage_id, DamageLawExponential::Create(4.0 / 25e3, 4.0 / 0.021));
 
     int heat_conduction_id = structure.ConstitutiveLawCreate(NuTo::Constitutive::eConstitutiveType::HEAT_CONDUCTION);
     structure.ConstitutiveLawSetParameterDouble(heat_conduction_id,
@@ -123,7 +117,7 @@ int main()
     const double area = 10.0;
     const double alpha = 0.1;
 
-    const int n_elements = 100;
+    const int n_elements = 3;
     const double delta_l = length / n_elements;
 
     auto totalSection = SectionTruss::Create(area);
@@ -135,7 +129,8 @@ int main()
     {
         coordinates[0] = (i + 1) * delta_l;
         nodeIDs[1] = structure.NodeCreate(coordinates);
-        auto element = structure.ElementCreate(interpolationType, nodeIDs);
+        auto elementId = structure.ElementCreate(interpolationType, nodeIDs);
+        auto element = structure.ElementGetElementPtr(elementId);
         if (coordinates[0] < (length - weakened_zone_length) / 2.0 or
             coordinates[0] > (length + weakened_zone_length) / 2.0)
             structure.ElementSetSection(element, totalSection);
@@ -147,50 +142,51 @@ int main()
     structure.ElementTotalConvertToInterpolationType();
 
     SetConstitutiveLawConcrete(structure);
+    std::cout << structure.BuildGlobalHessian0() << std::endl;
 
-    int visualizationGroup = structure.GroupCreate(NuTo::eGroupId::Elements);
-    structure.GroupAddElementsTotal(visualizationGroup);
+    //int visualizationGroup = structure.GroupCreate(NuTo::eGroupId::Elements);
+    //structure.GroupAddElementsTotal(visualizationGroup);
 
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::DISPLACEMENTS);
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::ENGINEERING_STRAIN);
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::ENGINEERING_STRESS);
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::PRINCIPAL_ENGINEERING_STRESS);
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::NONLOCAL_EQ_STRAIN);
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::DAMAGE);
-    structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::TEMPERATURE);
+    //structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::DISPLACEMENTS);
+    //structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::ENGINEERING_STRAIN);
+    //structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::ENGINEERING_STRESS);
+    //structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::PRINCIPAL_ENGINEERING_STRESS);
+    //structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::NONLOCAL_EQ_STRAIN);
+    //structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::DAMAGE);
+    //structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::TEMPERATURE);
 
-    Eigen::MatrixXd direction(1, 1);
-    direction.setOnes(1, 1);
-    structure.ConstraintLinearSetDisplacementNode(0, direction, 0.0);
-    int rightBC = structure.ConstraintLinearSetDisplacementNode(nodeIDs[0], direction, 0.0);
-    int leftTemp = structure.ConstraintLinearSetTemperatureNode(0, 0.0);
-    int rightTemp = structure.ConstraintLinearSetTemperatureNode(nodeIDs[0], 0.0);
+    //Eigen::MatrixXd direction(1, 1);
+    //direction.setOnes(1, 1);
+    //structure.ConstraintLinearSetDisplacementNode(0, direction, 0.0);
+    //int rightBC = structure.ConstraintLinearSetDisplacementNode(nodeIDs[0], direction, 0.0);
+    //int leftTemp = structure.ConstraintLinearSetTemperatureNode(0, 0.0);
+    //int rightTemp = structure.ConstraintLinearSetTemperatureNode(nodeIDs[0], 0.0);
 
-    SaveStresses saveStresses(nodeIDs[0]);
+    //SaveStresses saveStresses(nodeIDs[0]);
 
-    NuTo::NewmarkDirect newmark(&structure);
+    //NuTo::NewmarkDirect newmark(&structure);
 
-    Eigen::Matrix<double, 3, 2> displacementEvolution;
-    displacementEvolution << 0.0, 0.0, 1.0, 0.0, 2.0, -0.5;
-    newmark.AddTimeDependentConstraint(rightBC, displacementEvolution);
+    //Eigen::Matrix<double, 3, 2> displacementEvolution;
+    //displacementEvolution << 0.0, 0.0, 1.0, 0.0, 2.0, -0.5;
+    //newmark.AddTimeDependentConstraint(rightBC, displacementEvolution);
 
-    double temperature = 30.0;
-    Eigen::Matrix<double, 3, 2> temperatureEvolution;
-    temperatureEvolution << 0.0, 0.0, 1.0, temperature, 2.0, temperature;
-    newmark.AddTimeDependentConstraint(leftTemp, temperatureEvolution);
-    newmark.AddTimeDependentConstraint(rightTemp, temperatureEvolution);
+    //double temperature = 30.0;
+    //Eigen::Matrix<double, 3, 2> temperatureEvolution;
+    //temperatureEvolution << 0.0, 0.0, 1.0, temperature, 2.0, temperature;
+    //newmark.AddTimeDependentConstraint(leftTemp, temperatureEvolution);
+    //newmark.AddTimeDependentConstraint(rightTemp, temperatureEvolution);
 
-    newmark.SetTimeStep(0.05);
-    newmark.SetResultDirectory("damage_bar_results", true);
-    newmark.ConnectCallback(&saveStresses);
-    newmark.SetPerformLineSearch(true);
-    newmark.Solve(2.0);
+    //newmark.SetTimeStep(0.05);
+    //newmark.SetResultDirectory("damage_bar_results", true);
+    //newmark.ConnectCallback(&saveStresses);
+    //newmark.SetPerformLineSearch(true);
+    //newmark.Solve(2.0);
 
-    for (auto stress : saveStresses.GetStresses())
-        std::cout << stress << std::endl;
+    //for (auto stress : saveStresses.GetStresses())
+        //std::cout << stress << std::endl;
 
-    for (auto displacement : saveStresses.GetDisplacements())
-        std::cout << displacement << std::endl;
+    //for (auto displacement : saveStresses.GetDisplacements())
+        //std::cout << displacement << std::endl;
 
     return 0;
 }

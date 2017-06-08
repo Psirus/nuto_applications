@@ -1,7 +1,7 @@
 #add_custom_application(DamageShell ../meshes/2D/ShellCoarse.msh)
 add_test(custom::DamageShellNonlinear DamageShell --nonlinear ../meshes/2D/ShellCoarse.msh)
 add_custom_application(DamageShellMeso)
-#add_custom_application(DamageTruss)
+add_custom_application(DamageTruss)
 add_custom_application(khoury_cooling)
 add_custom_application(HTL)
 add_custom_application(HTLWithPrism)
