@@ -1,8 +1,12 @@
 #include <iostream>
+#include <cmath>
+
 #include <boost/range/adaptor/map.hpp>
 #include <boost/range/adaptor/indirected.hpp>
 #include <boost/range/join.hpp>
-#include <cmath>
+
+#include "json.hpp"
+
 #include "math/SparseMatrixCSRGeneral.h"
 #include "math/SparseDirectSolverMUMPS.h"
 #include "math/LinearInterpolation.h"
@@ -20,58 +24,38 @@
 #include "visualize/VisualizeEnum.h"
 
 using namespace NuTo;
+using json = nlohmann::json;
 
 const double radius = 31.0;
 const double height = 93.0;
 
-
-std::array<double, 2> SandstoneExpansion(double temperature)
-{
-    static std::vector<std::array<double, 2>> values = {
-            {{0.0, 0.0}, {200.0, 0.25e-2}, {400.0, 0.6e-2}, {600.0, 1.3e-2}, {800.0, 1.5e-2}, {1600.0, 1.5e-2}}};
-    static auto interpolation = Math::LinearInterpolation(values);
-    return {interpolation(temperature), interpolation.derivative(temperature)};
-}
-
-
-std::array<double, 2> CruzGillenCement(double temperature)
-{
-    static std::vector<std::array<double, 2>> values = {{{0.0, 0.0},
-                                                         {100.0, 0.2e-2},
-                                                         {200.0, 0.2e-2},
-                                                         {300.0, -0.2e-2},
-                                                         {400.0, -0.6e-2},
-                                                         {500.0, -1.1e-2},
-                                                         {600.0, -1.5e-2},
-                                                         {700.0, -1.7e-2},
-                                                         {800.0, -1.8e-2},
-                                                         {1600.0, -1.8e-2}}};
-    static auto interpolation = Math::LinearInterpolation(values);
-    return {interpolation(temperature), interpolation.derivative(temperature)};
-}
-
-
-void SetConstitutiveLawAggregate(Structure& structure, int group)
+void SetConstitutiveLawAggregate(Structure& structure, int group, const json parameters)
 {
     using namespace Constitutive;
     int additive_input_id = structure.ConstitutiveLawCreate(eConstitutiveType::ADDITIVE_INPUT_EXPLICIT);
     int additive_output_id = structure.ConstitutiveLawCreate(eConstitutiveType::ADDITIVE_OUTPUT);
 
     int lin_elastic_id = structure.ConstitutiveLawCreate(eConstitutiveType::LINEAR_ELASTIC_ENGINEERING_STRESS);
-    structure.ConstitutiveLawSetParameterDouble(lin_elastic_id, eConstitutiveParameter::YOUNGS_MODULUS, 70e3);
-    structure.ConstitutiveLawSetParameterDouble(lin_elastic_id, eConstitutiveParameter::POISSONS_RATIO, .2);
+    const auto mechanics = parameters["mechanics"];
+    structure.ConstitutiveLawSetParameterDouble(lin_elastic_id, eConstitutiveParameter::YOUNGS_MODULUS,
+                                                mechanics["youngs-modulus"]);
+    structure.ConstitutiveLawSetParameterDouble(lin_elastic_id, eConstitutiveParameter::POISSONS_RATIO,
+                                                mechanics["poisson-ratio"]);
 
     int heat_conduction_id = structure.ConstitutiveLawCreate(eConstitutiveType::HEAT_CONDUCTION);
-    structure.ConstitutiveLawSetParameterDouble(heat_conduction_id, eConstitutiveParameter::HEAT_CAPACITY, 700.0);
+    const auto thermal = parameters["thermal"];
+    structure.ConstitutiveLawSetParameterDouble(heat_conduction_id, eConstitutiveParameter::HEAT_CAPACITY,
+                                                thermal["heat-capacity"]);
     structure.ConstitutiveLawSetParameterDouble(heat_conduction_id, eConstitutiveParameter::THERMAL_CONDUCTIVITY,
-                                                3.3e-3);
-    structure.ConstitutiveLawSetParameterDouble(heat_conduction_id, eConstitutiveParameter::DENSITY, 2.5e-6);
+                                                thermal["conductivity"]);
+    structure.ConstitutiveLawSetParameterDouble(heat_conduction_id, eConstitutiveParameter::DENSITY,
+                                                thermal["density"]);
 
     int thermal_strains_id = structure.ConstitutiveLawCreate(eConstitutiveType::THERMAL_STRAINS);
     ConstitutiveBase* thermal_strains = structure.ConstitutiveLawGetConstitutiveLawPtr(thermal_strains_id);
-    // thermal_strains->SetParameterFunction(SandstoneExpansion);
     structure.ConstitutiveLawSetParameterDouble(thermal_strains_id,
-                                                eConstitutiveParameter::THERMAL_EXPANSION_COEFFICIENT, 30e-6);
+                                                eConstitutiveParameter::THERMAL_EXPANSION_COEFFICIENT,
+                                                mechanics["expansion-coefficient"]);
 
     AdditiveInputExplicit* additive_input =
             static_cast<AdditiveInputExplicit*>(structure.ConstitutiveLawGetConstitutiveLawPtr(additive_input_id));
@@ -90,7 +74,7 @@ void SetConstitutiveLawAggregate(Structure& structure, int group)
 }
 
 
-void SetConstitutiveLawMatrix(Structure& structure, int group)
+void SetConstitutiveLawMatrix(Structure& structure, int group, const json parameters)
 {
     using namespace Constitutive;
 
@@ -98,23 +82,35 @@ void SetConstitutiveLawMatrix(Structure& structure, int group)
     int additive_output_id = structure.ConstitutiveLawCreate(eConstitutiveType::ADDITIVE_OUTPUT);
 
     int damage_id = structure.ConstitutiveLawCreate(eConstitutiveType::GRADIENT_DAMAGE_ENGINEERING_STRESS);
-    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::YOUNGS_MODULUS, 25e3);
-    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::POISSONS_RATIO, .2);
-    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::NONLOCAL_RADIUS, 1.3);
-    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::TENSILE_STRENGTH, 4.);
-    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::COMPRESSIVE_STRENGTH, 4. * 10);
-    structure.ConstitutiveLawSetDamageLaw(damage_id, DamageLawExponential::Create(4.0 / 25e3, 4.0 / 0.015, 0.95));
+    const auto mechanics = parameters["mechanics"];
+    double E = mechanics["youngs-modulus"];
+    double tensileStrength = mechanics["tensile-strength"];
+    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::YOUNGS_MODULUS, E);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::POISSONS_RATIO,
+                                                mechanics["poisson-ratio"]);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::NONLOCAL_RADIUS,
+                                                mechanics["nonlocal-radius"]);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::COMPRESSIVE_STRENGTH,
+                                                mechanics["compressive-strength"]);
+    const auto damageLaw = DamageLawExponential::Create(tensileStrength / E,
+                                                        tensileStrength / mechanics["fracture-energy"].get<double>());
+
+    structure.ConstitutiveLawSetDamageLaw(damage_id, damageLaw);
 
     int hc_id = structure.ConstitutiveLawCreate(eConstitutiveType::HEAT_CONDUCTION);
-    structure.ConstitutiveLawSetParameterDouble(hc_id, eConstitutiveParameter::HEAT_CAPACITY, 700.0);
-    structure.ConstitutiveLawSetParameterDouble(hc_id, eConstitutiveParameter::THERMAL_CONDUCTIVITY, 2.1e-3);
-    structure.ConstitutiveLawSetParameterDouble(hc_id, eConstitutiveParameter::DENSITY, 2.0e-6);
+    const auto thermal = parameters["thermal"];
+    structure.ConstitutiveLawSetParameterDouble(hc_id, eConstitutiveParameter::HEAT_CAPACITY,
+                                                thermal["heat-capacity"]);
+    structure.ConstitutiveLawSetParameterDouble(hc_id, eConstitutiveParameter::THERMAL_CONDUCTIVITY,
+                                                thermal["conductivity"]);
+    structure.ConstitutiveLawSetParameterDouble(hc_id, eConstitutiveParameter::DENSITY,
+                                                thermal["density"]);
 
     int thermal_strains_id = structure.ConstitutiveLawCreate(eConstitutiveType::THERMAL_STRAINS);
     ConstitutiveBase* thermal_strains = structure.ConstitutiveLawGetConstitutiveLawPtr(thermal_strains_id);
-    // thermal_strains->SetParameterFunction(CruzGillenCement);
     structure.ConstitutiveLawSetParameterDouble(thermal_strains_id,
-                                                eConstitutiveParameter::THERMAL_EXPANSION_COEFFICIENT, 20e-6);
+                                                eConstitutiveParameter::THERMAL_EXPANSION_COEFFICIENT,
+                                                mechanics["expansion-coefficient"]);
 
 
     auto additive_input =
@@ -208,7 +204,12 @@ int main(int argc, char* argv[])
 
     const std::string filename = argv[1];
     const std::string outputDir = argv[2];
-    const double endTemperature = std::stod(argv[3]);
+    const std::string parameterFile = argv[3];
+    const double endTemperature = std::stod(argv[4]);
+
+    std::ifstream parameterStream(parameterFile);
+    json root;
+    parameterStream >> root;
 
     Structure structure(3);
     structure.SetNumTimeDerivatives(1);
@@ -220,8 +221,8 @@ int main(int argc, char* argv[])
     {
         auto matrix_group = groupIndices[0].first;
         auto aggregate_group = groupIndices[1].first;
-        SetConstitutiveLawMatrix(structure, matrix_group);
-        SetConstitutiveLawAggregate(structure, aggregate_group);
+        SetConstitutiveLawMatrix(structure, matrix_group, root["matrix"]);
+        SetConstitutiveLawAggregate(structure, aggregate_group, root["aggregates"]);
 
         auto interpolationMatrix = groupIndices[0].second;
         auto interpolationAggreg = groupIndices[1].second;
@@ -234,7 +235,7 @@ int main(int argc, char* argv[])
     else
     {
         auto matrix_group = groupIndices[0].first;
-        SetConstitutiveLawMatrix(structure, matrix_group);
+        SetConstitutiveLawMatrix(structure, matrix_group, root["matrix"]);
 
         auto interpolation = groupIndices[0].second;
         SetInterpolationMatrix(structure, interpolation);

@@ -1,6 +1,5 @@
 if(ENABLE_MECHANICS)
-    execute_process(COMMAND "${CMAKE_COMMAND}" "-E" "create_symlink"
-        "${CMAKE_CURRENT_SOURCE_DIR}/meshes" "${CMAKE_CURRENT_BINARY_DIR}/meshes")
+    create_symlink("meshes")
 
     function(add_custom_application source)
         set(parameters ${ARGN})

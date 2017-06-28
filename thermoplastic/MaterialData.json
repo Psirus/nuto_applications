@@ -1,0 +1,36 @@
+{
+    "matrix" :
+    {
+        "mechanics":
+        {
+            "youngs-modulus": 25e3,
+            "poisson-ratio": 0.2,
+            "nonlocal-radius": 1.3,
+            "tensile-strength": 4.0,
+            "compressive-strength": 40.0,
+            "fracture-energy": 0.015,
+            "expansion-coefficient": 20.0e-6
+        },
+        "thermal":
+        {
+            "heat-capacity": 700.0,
+            "conductivity": 3.1e-3,
+            "density": 2.0e-6
+        }
+    },
+    "aggregates":
+    {
+        "mechanics":
+        {
+            "youngs-modulus": 70e3,
+            "poisson-ratio": 0.2,
+            "expansion-coefficient": 30.0e-6
+        },
+        "thermal":
+        {
+            "heat-capacity": 700.0,
+            "conductivity": 3.3e-3,
+            "density": 2.5e-6
+        }
+    }
+}
