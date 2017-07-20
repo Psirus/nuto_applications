@@ -99,12 +99,10 @@ void SetConstitutiveLawMatrix(Structure& structure, int group, const json parame
 
     int hc_id = structure.ConstitutiveLawCreate(eConstitutiveType::HEAT_CONDUCTION);
     const auto thermal = parameters["thermal"];
-    structure.ConstitutiveLawSetParameterDouble(hc_id, eConstitutiveParameter::HEAT_CAPACITY,
-                                                thermal["heat-capacity"]);
+    structure.ConstitutiveLawSetParameterDouble(hc_id, eConstitutiveParameter::HEAT_CAPACITY, thermal["heat-capacity"]);
     structure.ConstitutiveLawSetParameterDouble(hc_id, eConstitutiveParameter::THERMAL_CONDUCTIVITY,
                                                 thermal["conductivity"]);
-    structure.ConstitutiveLawSetParameterDouble(hc_id, eConstitutiveParameter::DENSITY,
-                                                thermal["density"]);
+    structure.ConstitutiveLawSetParameterDouble(hc_id, eConstitutiveParameter::DENSITY, thermal["density"]);
 
     int thermal_strains_id = structure.ConstitutiveLawCreate(eConstitutiveType::THERMAL_STRAINS);
     ConstitutiveBase* thermal_strains = structure.ConstitutiveLawGetConstitutiveLawPtr(thermal_strains_id);

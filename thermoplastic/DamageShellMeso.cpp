@@ -200,23 +200,25 @@ int main()
     // temperature BC
     double simulationTime = 3600.0;
     double temperature = 800.0;
-    structure.Constraints().Add(Node::eDof::TEMPERATURE, Constraint::Value(nodesEast, [=](double time){return temperature*time/simulationTime;}));
+    structure.Constraints().Add(Node::eDof::TEMPERATURE, Constraint::Value(nodesEast, [=](double time) {
+                                    return temperature * time / simulationTime;
+                                }));
     structure.Constraints().Add(Node::eDof::TEMPERATURE, Constraint::Value(nodesWest));
     std::cout << structure.Constraints().GetNumEquations(Node::eDof::TEMPERATURE) << std::endl;
     std::cout << structure.Constraints().GetNumEquations(Node::eDof::DISPLACEMENTS) << std::endl;
 
-    //auto hessian = structure.BuildGlobalHessian0();
-    //auto solver = EigenSolverArpack();
-    //auto ev = solver.GetSmallest(hessian.JJ.ExportToCSRVector2General());
-    //std::cout << ev.first << std::endl; 
+    // auto hessian = structure.BuildGlobalHessian0();
+    // auto solver = EigenSolverArpack();
+    // auto ev = solver.GetSmallest(hessian.JJ.ExportToCSRVector2General());
+    // std::cout << ev.first << std::endl;
     ////auto ev_large = solver.GetLargest(hessian.JJ.ExportToCSRVector2General());
     ////std::cout << ev_large.first << std::endl;
 
-    //auto nodeValues = BlockFullVector<double>(ev.second, structure.GetDofStatus());
-    //auto nodeValuesDependend = structure.NodeCalculateDependentDofValues(nodeValues);
-    //structure.NodeMergeDofValues(0, nodeValues, nodeValuesDependend);
-    //structure.ElementGroupExportVtkDataFile(matrix_group, "matrix.vtu");
-    //structure.ElementGroupExportVtkDataFile(aggregate_group, "aggregates.vtu");
+    // auto nodeValues = BlockFullVector<double>(ev.second, structure.GetDofStatus());
+    // auto nodeValuesDependend = structure.NodeCalculateDependentDofValues(nodeValues);
+    // structure.NodeMergeDofValues(0, nodeValues, nodeValuesDependend);
+    // structure.ElementGroupExportVtkDataFile(matrix_group, "matrix.vtu");
+    // structure.ElementGroupExportVtkDataFile(aggregate_group, "aggregates.vtu");
 
     NewmarkDirect newmark(&structure);
     newmark.SetTimeStep(simulationTime / 100.0);

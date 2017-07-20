@@ -97,7 +97,8 @@ void SetConstitutiveLawMatrix(Structure& structure, int group, const double radi
     int damage_id = structure.ConstitutiveLawCreate(eConstitutiveType::GRADIENT_DAMAGE_ENGINEERING_STRESS);
     structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::YOUNGS_MODULUS, 25e3);
     structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::POISSONS_RATIO, .2);
-    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::NONLOCAL_RADIUS, 1.3 * 31.0 / radius);
+    structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::NONLOCAL_RADIUS,
+                                                1.3 * 31.0 / radius);
     structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::TENSILE_STRENGTH, 4.);
     structure.ConstitutiveLawSetParameterDouble(damage_id, eConstitutiveParameter::COMPRESSIVE_STRENGTH, 4. * 10);
     structure.ConstitutiveLawSetDamageLaw(damage_id, DamageLawExponential::Create(4.0 / 25e3, 4.0 / 0.021));
@@ -199,7 +200,8 @@ int main(int argc, char* argv[])
 {
     if (argc == 1)
     {
-        std::cout << "Arguments are meshfile, output directory, end temperature, radius and cylinder height" << std::endl;
+        std::cout << "Arguments are meshfile, output directory, end temperature, radius and cylinder height"
+                  << std::endl;
         std::exit(0);
     }
 

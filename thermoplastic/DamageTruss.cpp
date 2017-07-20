@@ -144,49 +144,49 @@ int main()
     SetConstitutiveLawConcrete(structure);
     std::cout << structure.BuildGlobalHessian0() << std::endl;
 
-    //int visualizationGroup = structure.GroupCreate(NuTo::eGroupId::Elements);
-    //structure.GroupAddElementsTotal(visualizationGroup);
+    // int visualizationGroup = structure.GroupCreate(NuTo::eGroupId::Elements);
+    // structure.GroupAddElementsTotal(visualizationGroup);
 
-    //structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::DISPLACEMENTS);
-    //structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::ENGINEERING_STRAIN);
-    //structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::ENGINEERING_STRESS);
-    //structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::PRINCIPAL_ENGINEERING_STRESS);
-    //structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::NONLOCAL_EQ_STRAIN);
-    //structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::DAMAGE);
-    //structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::TEMPERATURE);
+    // structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::DISPLACEMENTS);
+    // structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::ENGINEERING_STRAIN);
+    // structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::ENGINEERING_STRESS);
+    // structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::PRINCIPAL_ENGINEERING_STRESS);
+    // structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::NONLOCAL_EQ_STRAIN);
+    // structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::DAMAGE);
+    // structure.AddVisualizationComponent(visualizationGroup, NuTo::eVisualizeWhat::TEMPERATURE);
 
-    //Eigen::MatrixXd direction(1, 1);
-    //direction.setOnes(1, 1);
-    //structure.ConstraintLinearSetDisplacementNode(0, direction, 0.0);
-    //int rightBC = structure.ConstraintLinearSetDisplacementNode(nodeIDs[0], direction, 0.0);
-    //int leftTemp = structure.ConstraintLinearSetTemperatureNode(0, 0.0);
-    //int rightTemp = structure.ConstraintLinearSetTemperatureNode(nodeIDs[0], 0.0);
+    // Eigen::MatrixXd direction(1, 1);
+    // direction.setOnes(1, 1);
+    // structure.ConstraintLinearSetDisplacementNode(0, direction, 0.0);
+    // int rightBC = structure.ConstraintLinearSetDisplacementNode(nodeIDs[0], direction, 0.0);
+    // int leftTemp = structure.ConstraintLinearSetTemperatureNode(0, 0.0);
+    // int rightTemp = structure.ConstraintLinearSetTemperatureNode(nodeIDs[0], 0.0);
 
-    //SaveStresses saveStresses(nodeIDs[0]);
+    // SaveStresses saveStresses(nodeIDs[0]);
 
-    //NuTo::NewmarkDirect newmark(&structure);
+    // NuTo::NewmarkDirect newmark(&structure);
 
-    //Eigen::Matrix<double, 3, 2> displacementEvolution;
-    //displacementEvolution << 0.0, 0.0, 1.0, 0.0, 2.0, -0.5;
-    //newmark.AddTimeDependentConstraint(rightBC, displacementEvolution);
+    // Eigen::Matrix<double, 3, 2> displacementEvolution;
+    // displacementEvolution << 0.0, 0.0, 1.0, 0.0, 2.0, -0.5;
+    // newmark.AddTimeDependentConstraint(rightBC, displacementEvolution);
 
-    //double temperature = 30.0;
-    //Eigen::Matrix<double, 3, 2> temperatureEvolution;
-    //temperatureEvolution << 0.0, 0.0, 1.0, temperature, 2.0, temperature;
-    //newmark.AddTimeDependentConstraint(leftTemp, temperatureEvolution);
-    //newmark.AddTimeDependentConstraint(rightTemp, temperatureEvolution);
+    // double temperature = 30.0;
+    // Eigen::Matrix<double, 3, 2> temperatureEvolution;
+    // temperatureEvolution << 0.0, 0.0, 1.0, temperature, 2.0, temperature;
+    // newmark.AddTimeDependentConstraint(leftTemp, temperatureEvolution);
+    // newmark.AddTimeDependentConstraint(rightTemp, temperatureEvolution);
 
-    //newmark.SetTimeStep(0.05);
-    //newmark.SetResultDirectory("damage_bar_results", true);
-    //newmark.ConnectCallback(&saveStresses);
-    //newmark.SetPerformLineSearch(true);
-    //newmark.Solve(2.0);
+    // newmark.SetTimeStep(0.05);
+    // newmark.SetResultDirectory("damage_bar_results", true);
+    // newmark.ConnectCallback(&saveStresses);
+    // newmark.SetPerformLineSearch(true);
+    // newmark.Solve(2.0);
 
-    //for (auto stress : saveStresses.GetStresses())
-        //std::cout << stress << std::endl;
+    // for (auto stress : saveStresses.GetStresses())
+    // std::cout << stress << std::endl;
 
-    //for (auto displacement : saveStresses.GetDisplacements())
-        //std::cout << displacement << std::endl;
+    // for (auto displacement : saveStresses.GetDisplacements())
+    // std::cout << displacement << std::endl;
 
     return 0;
 }

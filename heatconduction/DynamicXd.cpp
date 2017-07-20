@@ -16,19 +16,19 @@ std::pair<double, double> analytic_solution(std::vector<double> x, double t)
     if (TDim == 1)
     {
         alpha = 0.0;
-        beta  = 0.0;
+        beta = 0.0;
         gamma = 2.0;
     }
     if (TDim == 2)
     {
         alpha = 1.0;
-        beta  = 0.0;
+        beta = 0.0;
         gamma = 4.0;
     }
     if (TDim == 3)
     {
         alpha = 2.0;
-        beta  = -2.5;
+        beta = -2.5;
         gamma = 1.0;
     }
     return {1 + x[0] * x[0] + alpha * x[1] * x[1] + beta * x[2] * x[2] + gamma * t, gamma};
@@ -49,7 +49,10 @@ void SetConstraints(Structure& structure, TimeIntegrationBase& newmark, double s
                     analytic_solution<2>({coordinates[0], coordinates[1], 0.0}, 0.0);
             std::tie(end_temperature, std::ignore) =
                     analytic_solution<2>({coordinates[0], coordinates[1], 0.0}, simulationTime);
-            structure.Constraints().Add(Node::eDof::TEMPERATURE, Constraint::Value(node_object, [=](double time){ return (end_temperature - initial_temperature)*time/simulationTime + initial_temperature; }));
+            structure.Constraints().Add(Node::eDof::TEMPERATURE, Constraint::Value(node_object, [=](double time) {
+                                            return (end_temperature - initial_temperature) * time / simulationTime +
+                                                   initial_temperature;
+                                        }));
         }
     }
 }
@@ -88,12 +91,12 @@ int main()
     // mesh
     int nElements = 10;
     // Geometry
-    double length    = 1.0;
+    double length = 1.0;
     double thickness = 1.0;
     // Material
     double conductivity = 1.0;
-    double capacity     = 1.0;
-    double density      = 1.0;
+    double capacity = 1.0;
+    double density = 1.0;
 
     Structure structure(2);
     structure.SetNumTimeDerivatives(1);
@@ -126,7 +129,7 @@ int main()
 
     SetInitialCondition(structure);
 
-    bool deleteDirectory  = true;
+    bool deleteDirectory = true;
     double simulationTime = 1.0;
     NewmarkDirect newmark(&structure);
     newmark.SetTimeStep(simulationTime / 10.0);

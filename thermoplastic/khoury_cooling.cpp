@@ -20,7 +20,7 @@
 using namespace NuTo;
 
 const double radius = 31.0;
-const double height = 186.0/2.0; // symmetry, only model half
+const double height = 186.0 / 2.0; // symmetry, only model half
 const double heating_rate = 1.0; // 1K/min
 const double max_temperature = 600.0; // K
 const double reversal_point = 60.0 * max_temperature / heating_rate;
@@ -109,7 +109,7 @@ void SetConstitutiveLawAggregate(Structure& structure, int group, Properties pro
 }
 
 void SetConstitutiveLawMatrix(Structure& structure, int group, Properties properties,
-                         std::function<std::array<double, 2>(double)> ExpansionFunction)
+                              std::function<std::array<double, 2>(double)> ExpansionFunction)
 {
     using namespace Constitutive;
     int additive_input_id = structure.ConstitutiveLawCreate(eConstitutiveType::ADDITIVE_INPUT_EXPLICIT);
@@ -278,7 +278,7 @@ int main(int ac, char* av[])
 
         Properties concrete = {41071.0, 893e-6, 1.89, 2899.0, 17.3e-6};
         // use SandstoneExpansion temporarily
-        SetConstitutiveLawMatrix(structure, matrix_group, concrete, SandstoneExpansion); 
+        SetConstitutiveLawMatrix(structure, matrix_group, concrete, SandstoneExpansion);
 
         auto interpolation = groupIndices[0].second;
 

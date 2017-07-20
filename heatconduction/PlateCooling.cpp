@@ -59,10 +59,10 @@ double CompareToAnalyticSolution(Structure& structure, double simulationTime)
         exact_values[node] = analytic_solution({coordinates[0], coordinates[1], 0.0}, simulationTime);
         fem_values[node] = structure.NodeGetTemperature(node);
     }
-    //std::cout << "Analytic Solution:" << std::endl;
-    //std::cout << exact_values << std::endl;
-    //std::cout << "FEM Solution:" << std::endl;
-    //std::cout << fem_values << std::endl;
+    // std::cout << "Analytic Solution:" << std::endl;
+    // std::cout << exact_values << std::endl;
+    // std::cout << "FEM Solution:" << std::endl;
+    // std::cout << fem_values << std::endl;
     double error = (exact_values - fem_values).norm() / exact_values.norm();
     return error;
 }
@@ -89,16 +89,17 @@ int main()
     auto planeSection = SectionPlane::Create(thickness, true);
 
     auto material = structure.ConstitutiveLawCreate(Constitutive::eConstitutiveType::HEAT_CONDUCTION);
-    structure.ConstitutiveLawSetParameterDouble(
-            material, Constitutive::eConstitutiveParameter::THERMAL_CONDUCTIVITY, conductivity);
-    structure.ConstitutiveLawSetParameterDouble(
-            material, Constitutive::eConstitutiveParameter::HEAT_CAPACITY, capacity);
+    structure.ConstitutiveLawSetParameterDouble(material, Constitutive::eConstitutiveParameter::THERMAL_CONDUCTIVITY,
+                                                conductivity);
+    structure.ConstitutiveLawSetParameterDouble(material, Constitutive::eConstitutiveParameter::HEAT_CAPACITY,
+                                                capacity);
     structure.ConstitutiveLawSetParameterDouble(material, Constitutive::eConstitutiveParameter::DENSITY, density);
 
     std::vector<int> numElements{nElements, nElements};
     std::vector<double> lengths{length, height};
     int group, interpolationType;
-    std::tie(group, interpolationType) = MeshGenerator::Grid(structure, lengths, numElements, NuTo::Interpolation::eShapeType::QUAD2D);
+    std::tie(group, interpolationType) =
+            MeshGenerator::Grid(structure, lengths, numElements, NuTo::Interpolation::eShapeType::QUAD2D);
 
     structure.ElementTotalSetSection(planeSection);
     structure.ElementTotalSetConstitutiveLaw(material);
@@ -121,9 +122,11 @@ int main()
     structure.GroupAddNodeCoordinateRange(nodes_south, 1, 0.0, 0.0);
     auto nodes_sw = structure.GroupUnion(nodes_west, nodes_south);
     auto nodes_essential_boundary_id = structure.GroupUnion(nodes_sw, nodes_east);
-    auto nodes_essential_boundary = *static_cast<Group<NodeBase>*>(structure.GroupGetGroupPtr(nodes_essential_boundary_id));
+    auto nodes_essential_boundary =
+            *static_cast<Group<NodeBase>*>(structure.GroupGetGroupPtr(nodes_essential_boundary_id));
 
-    structure.Constraints().Add(Node::eDof::TEMPERATURE, Constraint::Value(nodes_essential_boundary, boundary_temperature));
+    structure.Constraints().Add(Node::eDof::TEMPERATURE,
+                                Constraint::Value(nodes_essential_boundary, boundary_temperature));
 
     SetInitialCondition(structure, initial_temperature);
 

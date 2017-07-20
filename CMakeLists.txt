@@ -5,11 +5,11 @@ if(ENABLE_MECHANICS)
         set(parameters ${ARGN})
 
         add_executable(${source} ${source}.cpp)
-        target_link_libraries(${source} NuToMechanics NuToMath NuToBase
+        target_link_libraries(${source} Mechanics Math Base
             -lboost_program_options ${Boost_LIBRARIES}
             ${LAPACK_LIBRARIES} ${ANN_LIBRARIES} ${MUMPS_LIBRARIES})
         if(ENABLE_VISUALIZE)
-            target_link_libraries(${source} NuToVisualize)
+            target_link_libraries(${source} Visualize)
         endif()
 
         add_test(custom::${source} ${source} ${parameters})

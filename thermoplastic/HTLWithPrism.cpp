@@ -233,7 +233,6 @@ void SetVisualizationITZ(Structure& structure, int group)
 }
 
 
-
 void SetCommonBCs(Structure& structure, Group<NodeBase>& nodesTop, Group<NodeBase>& nodesBottom, NodeBase& primary,
                   std::function<double(double)> temperatureRamp)
 {
